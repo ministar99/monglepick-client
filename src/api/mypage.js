@@ -3,11 +3,11 @@
  *
  * 사용자 프로필, 시청 이력, 위시리스트, 선호 설정 등
  * 마이페이지 관련 HTTP 요청을 처리한다.
- * 모든 요청에 인증 토큰이 필요하다.
+ * 모든 요청에 인증 토큰이 필요하다.cdcd
  */
 
 import { MYPAGE_ENDPOINTS, API_BASE_URL } from '../constants/api';
-import { getToken } from '../utils/storage';
+import { getToken } from '../utils/storage';      
 
 /**
  * 인증이 필요한 API 요청을 위한 공통 fetch 래퍼.
