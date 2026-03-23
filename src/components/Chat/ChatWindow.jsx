@@ -11,8 +11,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-/* 채팅 상태 관리 훅 — 같은 feature 내의 hooks에서 가져옴 */
-import { useChat } from '../hooks/useChat';
+import { useChat } from '../../hooks/useChat';
 import MovieCard from './MovieCard';
 import './ChatWindow.css';
 
@@ -212,7 +211,7 @@ export default function ChatWindow() {
       {/* ── 헤더 ── */}
       <header className="chat-header">
         <div className="chat-header__left">
-          <img src="/mongle-transparent.png" alt="몽글픽" className="chat-header__avatar" />
+          <span className="chat-header__avatar">M</span>
           <div>
             <h1 className="chat-header__title">몽글픽</h1>
             <p className="chat-header__subtitle">AI 영화 추천</p>
@@ -232,7 +231,7 @@ export default function ChatWindow() {
         {/* 초기 안내 메시지 (메시지가 없을 때) */}
         {messages.length === 0 && (
           <div className="chat-welcome">
-            <img src="/mongle-transparent.png" alt="몽글픽" className="chat-welcome__icon" />
+            <div className="chat-welcome__icon">M</div>
             <h2 className="chat-welcome__title">안녕하세요! 몽글픽이에요</h2>
             <p className="chat-welcome__desc">
               어떤 영화를 찾고 계신가요? 기분, 장르, 좋아하는 영화 등
@@ -286,7 +285,7 @@ export default function ChatWindow() {
           if (msg.role === 'bot') {
             return (
               <div key={idx} className="chat-msg chat-msg--bot">
-                <img src="/mongle-transparent.png" alt="몽글픽" className="chat-msg__avatar" />
+                <span className="chat-msg__avatar">M</span>
                 <div className={`chat-msg__bubble chat-msg__bubble--bot${msg.cancelled ? ' chat-msg__bubble--cancelled' : ''}`}>
                   {msg.content}
                 </div>
@@ -298,7 +297,7 @@ export default function ChatWindow() {
           if (msg.role === 'movie_cards') {
             return (
               <div key={idx} className="chat-msg chat-msg--bot">
-                <img src="/mongle-transparent.png" alt="몽글픽" className="chat-msg__avatar" />
+                <span className="chat-msg__avatar">M</span>
                 <div className="chat-movie-cards">
                   {msg.movies.map((movie, mIdx) => (
                     <MovieCard key={movie.id || mIdx} movie={movie} />
@@ -314,7 +313,7 @@ export default function ChatWindow() {
         {/* 처리 상태 인디케이터 */}
         {isLoading && status && (
           <div className="chat-msg chat-msg--bot">
-            <img src="/mongle-transparent.png" alt="몽글픽" className="chat-msg__avatar" />
+            <span className="chat-msg__avatar">M</span>
             <div className="chat-status">
               <div className="chat-status__dots">
                 <span></span>
@@ -329,7 +328,7 @@ export default function ChatWindow() {
         {/* 후속 질문 힌트 칩 (clarification 이벤트 수신 시) */}
         {clarification?.hints?.length > 0 && (
           <div className="chat-msg chat-msg--bot">
-            <img src="/mongle-transparent.png" alt="몽글픽" className="chat-msg__avatar" />
+            <span className="chat-msg__avatar">M</span>
             <div className="chat-clarification">
               {clarification.hints.map((hint) => (
                 <div key={hint.field} className="chat-clarification__group">
@@ -361,7 +360,7 @@ export default function ChatWindow() {
         {/* 에러 메시지 */}
         {error && (
           <div className="chat-msg chat-msg--bot">
-            <img src="/mongle-transparent.png" alt="몽글픽" className="chat-msg__avatar" />
+            <span className="chat-msg__avatar">M</span>
             <div className="chat-msg__bubble chat-msg__bubble--error">
               {error}
             </div>

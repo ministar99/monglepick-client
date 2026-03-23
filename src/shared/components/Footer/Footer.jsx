@@ -20,7 +20,7 @@ export default function Footer() {
         {/* ── 로고 및 설명 ── */}
         <div className="footer__brand">
           <Link to={ROUTES.HOME} className="footer__logo">
-            <span className="footer__logo-icon">M</span>
+            <img src="/mongle-transparent.png" alt="몽글픽" className="footer__logo-icon" />
             <span className="footer__logo-text">몽글픽</span>
           </Link>
           <p className="footer__desc">

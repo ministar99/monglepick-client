@@ -89,7 +89,7 @@ export default function HomePage() {
         <div className="home-hero__content">
           {/* 로고 배지 */}
           <div className="home-hero__badge">
-            <span className="home-hero__badge-icon">M</span>
+            <img src="/mongle-transparent.png" alt="몽글픽" className="home-hero__badge-icon" />
             <span>AI 영화 추천 서비스</span>
           </div>
 

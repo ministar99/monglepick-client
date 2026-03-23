@@ -49,7 +49,7 @@ export default function Header() {
       <div className="header__inner">
         {/* ── 로고 영역 ── */}
         <Link to={ROUTES.HOME} className="header__logo" onClick={closeMobileMenu}>
-          <span className="header__logo-icon">M</span>
+          <img src="/mongle-transparent.png" alt="몽글픽" className="header__logo-icon" />
           <span className="header__logo-text">몽글픽</span>
         </Link>
 

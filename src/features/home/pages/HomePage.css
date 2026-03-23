@@ -46,16 +46,10 @@
 }
 
 .home-hero__badge-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 24px;
   height: 24px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: white;
-  font-size: var(--text-xs);
-  font-weight: var(--font-bold);
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 /* 타이틀 */

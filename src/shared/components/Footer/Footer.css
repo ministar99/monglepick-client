@@ -38,18 +38,12 @@
   margin-bottom: var(--space-sm);
 }
 
-/* 로고 아이콘 */
+/* 로고 아이콘 (몽글 캐릭터 이미지) */
 .footer__logo-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   width: 28px;
   height: 28px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  color: white;
-  font-weight: var(--font-bold);
-  font-size: var(--text-sm);
+  object-fit: contain;
+  flex-shrink: 0;
 }
 
 /* 로고 텍스트 */

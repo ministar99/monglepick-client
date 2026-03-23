@@ -111,14 +111,11 @@
   gap: 10px;
 }
 
-/* 몽글 아바타 (M 이니셜) */
+/* 몽글 아바타 (캐릭터 이미지) */
 .chat-header__avatar {
   width: 36px;
   height: 36px;
   object-fit: contain;
-  flex-shrink: 0;
-  font-size: 16px;
-  color: #fff;
   flex-shrink: 0;
 }
 
@@ -186,13 +183,11 @@
   gap: 12px;
 }
 
-/* 몽글 아이콘 (큰 버전) */
+/* 몽글 아이콘 (캐릭터 이미지, 큰 버전) */
 .chat-welcome__icon {
   width: 80px;
   height: 80px;
   object-fit: contain;
-  font-size: 28px;
-  color: #fff;
   margin-bottom: 4px;
 }
 
@@ -270,14 +265,11 @@
   align-self: flex-start;
 }
 
-/* 봇 아바타 (작은 M) */
+/* 봇 아바타 (캐릭터 이미지) */
 .chat-msg__avatar {
   width: 28px;
   height: 28px;
   object-fit: contain;
-  flex-shrink: 0;
-  font-size: 12px;
-  color: #fff;
   flex-shrink: 0;
   margin-top: 2px;
 }
