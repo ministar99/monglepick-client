@@ -47,13 +47,61 @@
   display: flex;
   align-items: center;
   gap: var(--space-sm);
+  width: 100%;
+}
+
+.search-page__search-type-wrap {
   position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.search-page__search-type {
+  height: 48px;
+  padding: 0 calc(var(--space-xl) + var(--space-sm)) 0 var(--space-md);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  color: var(--text-primary);
+  font-size: var(--text-sm);
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  min-width: 110px;
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.search-page__search-type:hover,
+.search-page__search-type:focus {
+  border-color: var(--primary);
+  box-shadow: var(--glow-primary);
+  outline: none;
+}
+
+.search-page__search-type-arrow {
+  position: absolute;
+  right: var(--space-sm);
+  color: var(--text-muted);
+  pointer-events: none;
+  font-size: var(--text-sm);
+}
+
+.search-page__input-field {
+  flex: 1;
+  position: relative;
+  min-width: 0;
 }
 
 /* 검색 아이콘 — 입력창 왼쪽에 배치 */
 .search-page__input-icon {
   position: absolute;
   left: var(--space-md);
+  top: 50%;
+  transform: translateY(-50%);
   font-size: var(--text-lg);
   z-index: 1;
   pointer-events: none;
@@ -62,7 +110,7 @@
 
 /* 검색 입력 필드 — glass 스타일 + 포커스 글로우 */
 .search-page__input {
-  flex: 1;
+  width: 100%;
   height: 48px;
   padding: var(--space-md) var(--space-lg);
   padding-left: 44px;
@@ -240,9 +288,12 @@
     align-items: stretch;
   }
 
-  /* 모바일에서 아이콘 위치 유지 */
-  .search-page__input-icon {
-    top: 14px;
+  .search-page__search-type-wrap {
+    width: 100%;
+  }
+
+  .search-page__search-type {
+    width: 100%;
   }
 
   .search-page__search-btn {
