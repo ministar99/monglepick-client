@@ -18,6 +18,7 @@ import {
   deleteAllRecentSearches,
   deleteRecentSearchKeyword,
   getRecentSearches,
+  getSearchGenres,
   logSearchResultClick,
   searchMovies,
 } from '../../movie/api/movieApi';
@@ -69,6 +70,21 @@ function createInitialRecentPagination() {
 }
 
 /**
+ * URL 쿼리스트링의 장르 목록을 배열로 변환한다.
+ * `genres=액션,드라마` 형태를 `["액션", "드라마"]` 로 다룬다.
+ */
+function parseSelectedGenresParam(value) {
+  if (!value) {
+    return [];
+  }
+
+  return value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+/**
  * 최근 검색 시각을 `YYYY.MM.DD HH:MM` 형식으로 표시한다.
  * 모달 목록에서 키워드 아래 보조 정보로 사용한다.
  */
@@ -90,12 +106,13 @@ function formatRecentSearchTimestamp(value) {
   });
 }
 
-function buildSearchCacheKey({ query, searchType, genre, sort }) {
+function buildSearchCacheKey({ query, searchType, genre, sort, selectedGenres = [] }) {
   return JSON.stringify({
     query: query || '',
     searchType: searchType || 'all',
     genre: genre || '전체',
     sort: sort || 'relevance',
+    selectedGenres,
   });
 }
 
@@ -127,12 +144,16 @@ function clearSearchCache() {
 export default function SearchPage() {
   /* URL 쿼리 파라미터 연동 */
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialSelectedGenres = parseSelectedGenresParam(searchParams.get('genres'));
 
   /* 검색 상태 */
   const [query, setQuery]         = useState(searchParams.get('q') || '');
   const [searchType, setSearchType] = useState(searchParams.get('searchType') || 'all');
   const [genre, setGenre]         = useState(searchParams.get('genre') || '전체');
   const [sort, setSort]           = useState(searchParams.get('sort') || 'relevance');
+  const [searchGenreOptions, setSearchGenreOptions] = useState([]);
+  const [isSearchGenreOptionsLoading, setIsSearchGenreOptionsLoading] = useState(false);
+  const [selectedSearchGenres, setSelectedSearchGenres] = useState(initialSelectedGenres);
   const [movies, setMovies]       = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isFetchingMore, setIsFetchingMore] = useState(false);
@@ -163,6 +184,7 @@ export default function SearchPage() {
     setHasMore(Boolean(snapshot.hasMore));
     setHasSearched(Boolean(snapshot.hasSearched));
     setLastSearchContext(snapshot.lastSearchContext || null);
+    setSelectedSearchGenres(snapshot.lastSearchContext?.discoveryGenres || []);
     setIsLoading(false);
     setIsFetchingMore(false);
   }, []);
@@ -178,9 +200,19 @@ export default function SearchPage() {
     searchSort,
     page = 1,
     append = false,
+    discoveryGenres = selectedSearchGenres,
   ) => {
-    /* 검색어가 없으면 실행하지 않음 */
-    if (!searchQuery.trim()) {
+    const queryText = searchQuery.trim();
+    const normalizedDiscoveryGenres = queryText ? [] : discoveryGenres.filter(Boolean);
+    const isGenreDiscoverySearch = !queryText && normalizedDiscoveryGenres.length > 0;
+    const effectiveSort = (
+      isGenreDiscoverySearch && searchSort === 'relevance'
+        ? 'rating'
+        : searchSort
+    );
+
+    /* 텍스트 검색어도, 선택 장르도 없으면 검색을 실행하지 않음 */
+    if (!queryText && !isGenreDiscoverySearch) {
       setMovies([]);
       setHasSearched(false);
       setTotalCount(0);
@@ -196,24 +228,33 @@ export default function SearchPage() {
     } else {
       setIsLoading(true);
       setHasSearched(true);
+      if (effectiveSort !== searchSort) {
+        setSort(effectiveSort);
+      }
     }
 
     if (!append) {
       /* URL 쿼리 파라미터 업데이트 */
       const params = new URLSearchParams();
-      params.set('q', searchQuery);
-      if (currentSearchType !== 'all') params.set('searchType', currentSearchType);
-      if (searchGenre !== '전체') params.set('genre', searchGenre);
-      if (searchSort !== 'relevance') params.set('sort', searchSort);
+      if (queryText) {
+        params.set('q', queryText);
+        if (currentSearchType !== 'all') params.set('searchType', currentSearchType);
+        if (searchGenre !== '전체') params.set('genre', searchGenre);
+      }
+      if (isGenreDiscoverySearch) {
+        params.set('genres', normalizedDiscoveryGenres.join(','));
+      }
+      if (effectiveSort !== 'relevance') params.set('sort', effectiveSort);
       setSearchParams(params, { replace: true });
     }
 
     try {
       const result = await searchMovies({
-        query: searchQuery,
+        query: queryText,
         searchType: currentSearchType,
-        genre: searchGenre === '전체' ? '' : searchGenre,
-        sort: searchSort,
+        genre: queryText && searchGenre !== '전체' ? searchGenre : '',
+        genres: isGenreDiscoverySearch ? normalizedDiscoveryGenres : [],
+        sort: effectiveSort,
         page,
         size: PAGE_SIZE,
       });
@@ -226,18 +267,23 @@ export default function SearchPage() {
       setCurrentPage(page);
       setHasMore(page * PAGE_SIZE < nextTotal);
       setLastSearchContext({
-        query: searchQuery,
+        query: queryText,
         searchType: currentSearchType,
-        genre: searchGenre,
-        sort: searchSort,
+        genre: queryText ? searchGenre : '전체',
+        sort: effectiveSort,
+        discoveryGenres: normalizedDiscoveryGenres,
+        searchMode: isGenreDiscoverySearch ? 'genre_discovery' : 'keyword',
         resultCount: nextTotal,
       });
 
       /* Phase 2: 검색 실행 이벤트 (첫 페이지만 기록) */
       if (!append) {
         trackEvent('search', null, {
-          query: searchQuery, searchType: currentSearchType,
-          genre: searchGenre, sort: searchSort, resultCount: nextTotal,
+          query: queryText || normalizedDiscoveryGenres.join(','),
+          searchType: currentSearchType,
+          genre: queryText ? searchGenre : normalizedDiscoveryGenres.join(','),
+          sort: effectiveSort,
+          resultCount: nextTotal,
         });
       }
     } catch {
@@ -256,7 +302,7 @@ export default function SearchPage() {
         setIsLoading(false);
       }
     }
-  }, [setSearchParams]);
+  }, [selectedSearchGenres, setSearchParams]);
 
   /**
    * URL 파라미터에 검색어가 있으면 마운트 시 1회 자동 검색 실행.
@@ -270,18 +316,22 @@ export default function SearchPage() {
     const urlQuery = searchParams.get('q');
     const urlSearchType = searchParams.get('searchType') || 'all';
     const urlGenre = searchParams.get('genre') || '전체';
-    const urlSort  = searchParams.get('sort') || 'relevance';
-    if (urlQuery) {
-      setQuery(urlQuery);
+    const urlSort = searchParams.get('sort') || 'relevance';
+    const urlSelectedGenres = parseSelectedGenresParam(searchParams.get('genres'));
+
+    if (urlQuery || urlSelectedGenres.length > 0) {
+      setQuery(urlQuery || '');
       setSearchType(urlSearchType);
       setGenre(urlGenre);
       setSort(urlSort);
+      setSelectedSearchGenres(urlSelectedGenres);
 
       const cacheKey = buildSearchCacheKey({
-        query: urlQuery,
+        query: urlQuery || '',
         searchType: urlSearchType,
         genre: urlGenre,
         sort: urlSort,
+        selectedGenres: urlSelectedGenres,
       });
       const cachedSearch = readSearchCache();
 
@@ -290,9 +340,40 @@ export default function SearchPage() {
         return;
       }
 
-      executeSearch(urlQuery, urlSearchType, urlGenre, urlSort);
+      executeSearch(urlQuery || '', urlSearchType, urlGenre, urlSort, 1, false, urlSelectedGenres);
     }
   }, [executeSearch, restoreSearchSnapshot, searchParams]);
+
+  /**
+   * 텍스트 검색이 비어 있을 때 사용할 다중 장르 토글 옵션을 받아온다.
+   * 검색 페이지 진입 직후 1회 로드해 장르 발견형 검색에 사용한다.
+   */
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchSearchGenres = async () => {
+      setIsSearchGenreOptionsLoading(true);
+      try {
+        const genres = await getSearchGenres();
+        if (isMounted) {
+          setSearchGenreOptions(genres);
+        }
+      } catch {
+        if (isMounted) {
+          setSearchGenreOptions([]);
+        }
+      } finally {
+        if (isMounted) {
+          setIsSearchGenreOptionsLoading(false);
+        }
+      }
+    };
+
+    fetchSearchGenres();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   /**
    * 검색창 아래에 노출할 최근 검색 기록 미리보기 5개를 불러온다.
@@ -396,7 +477,10 @@ export default function SearchPage() {
   }, [isAuthenticated, loadRecentPreview]);
 
   useEffect(() => {
-    if (!isAuthenticated || !hasSearched || currentPage !== 1 || !lastSearchContext?.query?.trim()) {
+    const hasRecentSearchKeyword = Boolean(lastSearchContext?.query?.trim());
+    const hasRecentSearchGenres = Boolean(lastSearchContext?.discoveryGenres?.length);
+
+    if (!isAuthenticated || !hasSearched || currentPage !== 1 || (!hasRecentSearchKeyword && !hasRecentSearchGenres)) {
       return;
     }
 
@@ -409,6 +493,7 @@ export default function SearchPage() {
     hasSearched,
     isRecentModalOpen,
     isAuthenticated,
+    lastSearchContext?.discoveryGenres,
     lastSearchContext?.query,
     loadRecentPreview,
     loadRecentSearches,
@@ -439,7 +524,10 @@ export default function SearchPage() {
   }, [isRecentModalOpen]);
 
   useEffect(() => {
-    if (!hasSearched || !lastSearchContext?.query?.trim()) {
+    const hasCachedQuery = Boolean(lastSearchContext?.query?.trim());
+    const hasCachedGenres = Boolean(lastSearchContext?.discoveryGenres?.length);
+
+    if (!hasSearched || (!hasCachedQuery && !hasCachedGenres)) {
       return;
     }
 
@@ -449,6 +537,7 @@ export default function SearchPage() {
         searchType: lastSearchContext.searchType,
         genre: lastSearchContext.genre,
         sort: lastSearchContext.sort,
+        selectedGenres: lastSearchContext.discoveryGenres || [],
       }),
       snapshot: {
         movies,
@@ -475,8 +564,20 @@ export default function SearchPage() {
    */
   const handleSearch = (e) => {
     e.preventDefault();
-    executeSearch(query, searchType, genre, sort);
+    executeSearch(query, searchType, genre, sort, 1, false, selectedSearchGenres);
   };
+
+  /**
+   * 텍스트 검색이 없을 때 사용하는 장르 발견형 토글을 켜고 끈다.
+   * 다중 선택이 가능하며, 실제 검색 실행은 [검색] 버튼 클릭 시점에만 일어난다.
+   */
+  const handleSearchGenreToggle = useCallback((genreLabel) => {
+    setSelectedSearchGenres((prev) => (
+      prev.includes(genreLabel)
+        ? prev.filter((item) => item !== genreLabel)
+        : [...prev, genreLabel]
+    ));
+  }, []);
 
   /**
    * 전체 검색 기록 모달을 연다.
@@ -577,10 +678,25 @@ export default function SearchPage() {
   /**
    * 최근 검색 기록에서 키워드를 다시 선택하면 모달을 닫고 동일 조건으로 재검색한다.
    */
-  const handleRecentSearchClick = useCallback((keyword) => {
-    setQuery(keyword);
+  const handleRecentSearchClick = useCallback((item) => {
+    const historyFilters = item?.filters || {};
+    const historyGenres = Array.isArray(historyFilters.genres) ? historyFilters.genres : [];
+    const isGenreHistory = historyFilters.search_mode === 'genre_discovery' && historyGenres.length > 0;
+
+    if (isGenreHistory) {
+      setQuery('');
+      setSearchType('all');
+      setGenre('전체');
+      setSort('rating');
+      setSelectedSearchGenres(historyGenres);
+      setIsRecentModalOpen(false);
+      executeSearch('', 'all', '전체', 'rating', 1, false, historyGenres);
+      return;
+    }
+
+    setQuery(item.keyword);
     setIsRecentModalOpen(false);
-    executeSearch(keyword, searchType, genre, sort);
+    executeSearch(item.keyword, searchType, genre, sort);
   }, [executeSearch, genre, searchType, sort]);
 
   /**
@@ -615,7 +731,20 @@ export default function SearchPage() {
   const handleSortChange = (selectedSort) => {
     setSort(selectedSort);
     if (query.trim()) {
-      executeSearch(query, searchType, genre, selectedSort);
+      executeSearch(query, searchType, genre, selectedSort, 1, false, selectedSearchGenres);
+      return;
+    }
+
+    if (hasSearched && lastSearchContext?.discoveryGenres?.length) {
+      executeSearch(
+        '',
+        'all',
+        '전체',
+        selectedSort,
+        1,
+        false,
+        lastSearchContext.discoveryGenres,
+      );
     }
   };
 
@@ -623,11 +752,25 @@ export default function SearchPage() {
    * 현재 조건으로 다음 페이지를 로드한다.
    */
   const loadMoreMovies = useCallback(() => {
-    if (!hasSearched || isLoading || isFetchingMore || !hasMore || !query.trim()) {
+    if (!hasSearched || isLoading || isFetchingMore || !hasMore) {
       return;
     }
 
-    executeSearch(query, searchType, genre, sort, currentPage + 1, true);
+    const pagedQuery = lastSearchContext?.query || query;
+    const pagedSearchType = lastSearchContext?.searchType || searchType;
+    const pagedGenre = lastSearchContext?.genre || genre;
+    const pagedSort = lastSearchContext?.sort || sort;
+    const pagedDiscoveryGenres = lastSearchContext?.discoveryGenres || selectedSearchGenres;
+
+    executeSearch(
+      pagedQuery,
+      pagedSearchType,
+      pagedGenre,
+      pagedSort,
+      currentPage + 1,
+      true,
+      pagedDiscoveryGenres,
+    );
   }, [
     currentPage,
     executeSearch,
@@ -636,7 +779,13 @@ export default function SearchPage() {
     hasSearched,
     isFetchingMore,
     isLoading,
+    lastSearchContext?.discoveryGenres,
+    lastSearchContext?.searchType,
+    lastSearchContext?.genre,
+    lastSearchContext?.query,
+    lastSearchContext?.sort,
     query,
+    selectedSearchGenres,
     searchType,
     sort,
   ]);
@@ -664,18 +813,23 @@ export default function SearchPage() {
   }, [hasMore, hasSearched, loadMoreMovies]);
 
   const handleMovieClick = useCallback(async (movie) => {
-    if (!lastSearchContext?.query?.trim()) {
+    const searchKeyword = lastSearchContext?.query?.trim()
+      || lastSearchContext?.discoveryGenres?.join(',');
+
+    if (!searchKeyword) {
       return;
     }
 
     try {
       await logSearchResultClick({
-        keyword: lastSearchContext.query,
+        keyword: searchKeyword,
         clickedMovieId: movie.id || movie.movieId,
         resultCount: lastSearchContext.resultCount,
         filters: {
           search_type: lastSearchContext.searchType,
           genre: lastSearchContext.genre === '전체' ? null : lastSearchContext.genre,
+          genres: lastSearchContext.discoveryGenres || [],
+          search_mode: lastSearchContext.searchMode || 'keyword',
           sort: lastSearchContext.sort,
         },
       });
@@ -752,7 +906,7 @@ export default function SearchPage() {
                   <S.RecentPreviewItem key={`preview-${item.keyword}-${item.searched_at}`}>
                     <S.RecentPreviewButton
                       type="button"
-                      onClick={() => handleRecentSearchClick(item.keyword)}
+                      onClick={() => handleRecentSearchClick(item)}
                     >
                       <S.RecentPreviewKeyword>{item.keyword}</S.RecentPreviewKeyword>
                     </S.RecentPreviewButton>
@@ -761,6 +915,38 @@ export default function SearchPage() {
               </S.RecentPreviewList>
             )}
           </S.RecentSection>
+        )}
+
+        {!query.trim() && (
+          <S.SearchGenreSection>
+            <S.SearchGenreTitle>장르로 찾기</S.SearchGenreTitle>
+            <S.SearchGenreDescription>
+              텍스트 검색 없이 장르를 하나 이상 선택해 영화를 찾아볼 수 있습니다.
+            </S.SearchGenreDescription>
+
+            {isSearchGenreOptionsLoading && (
+              <S.SearchGenreEmpty>장르 목록을 불러오는 중입니다.</S.SearchGenreEmpty>
+            )}
+
+            {!isSearchGenreOptionsLoading && searchGenreOptions.length === 0 && (
+              <S.SearchGenreEmpty>표시할 장르가 없습니다.</S.SearchGenreEmpty>
+            )}
+
+            {!isSearchGenreOptionsLoading && searchGenreOptions.length > 0 && (
+              <S.SearchGenreGrid>
+                {searchGenreOptions.map((item) => (
+                  <S.SearchGenreToggle
+                    key={item.label}
+                    type="button"
+                    $active={selectedSearchGenres.includes(item.label)}
+                    onClick={() => handleSearchGenreToggle(item.label)}
+                  >
+                    {item.label}
+                  </S.SearchGenreToggle>
+                ))}
+              </S.SearchGenreGrid>
+            )}
+          </S.SearchGenreSection>
         )}
 
         {isAuthenticated && isRecentModalOpen && (
@@ -811,7 +997,7 @@ export default function SearchPage() {
                         <S.RecentModalRow>
                           <S.RecentModalKeywordButton
                             type="button"
-                            onClick={() => handleRecentSearchClick(item.keyword)}
+                            onClick={() => handleRecentSearchClick(item)}
                           >
                             <S.RecentModalKeyword>{item.keyword}</S.RecentModalKeyword>
                             <S.RecentModalMeta>
@@ -847,17 +1033,21 @@ export default function SearchPage() {
 
         {/* 장르 필터 + 정렬 */}
         <S.Filters>
-          <S.Genres>
-            {GENRE_FILTERS.map((g) => (
-              <S.GenreButton
-                key={g}
-                $active={genre === g}
-                onClick={() => handleGenreChange(g)}
-              >
-                {g}
-              </S.GenreButton>
-            ))}
-          </S.Genres>
+          {query.trim() ? (
+            <S.Genres>
+              {GENRE_FILTERS.map((g) => (
+                <S.GenreButton
+                  key={g}
+                  $active={genre === g}
+                  onClick={() => handleGenreChange(g)}
+                >
+                  {g}
+                </S.GenreButton>
+              ))}
+            </S.Genres>
+          ) : (
+            <S.FilterSpacer aria-hidden="true" />
+          )}
 
           {/* 정렬 옵션 — 커스텀 셀렉트 래퍼 */}
           <S.SortWrap>

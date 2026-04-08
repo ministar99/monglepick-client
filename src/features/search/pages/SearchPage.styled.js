@@ -600,6 +600,94 @@ export const RecentStatus = styled.p`
 `;
 
 /**
+ * 텍스트 검색 없이 장르만 선택할 때 사용하는 전용 섹션.
+ * 기존 단일 장르 필터와 다른 역할이라 시각적으로 분리한다.
+ */
+export const SearchGenreSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.md};
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.xl};
+  background: ${({ theme }) => theme.colors.bgCard};
+`;
+
+/**
+ * 장르 발견형 검색 섹션 제목.
+ */
+export const SearchGenreTitle = styled.h2`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: ${({ theme }) => theme.typography.textBase};
+  font-weight: ${({ theme }) => theme.typography.fontSemibold};
+`;
+
+/**
+ * 장르 발견형 검색 섹션 안내 문구.
+ */
+export const SearchGenreDescription = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.typography.textSm};
+`;
+
+/**
+ * 장르 발견형 검색의 빈 상태/로딩 문구.
+ */
+export const SearchGenreEmpty = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.typography.textSm};
+`;
+
+/**
+ * 장르 발견형 검색 토글 목록.
+ * CSV 기준 장르 수가 많아 여러 줄로 자연스럽게 감싼다.
+ */
+export const SearchGenreGrid = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+/**
+ * 장르 발견형 검색 토글 버튼.
+ * 여러 개를 동시에 선택할 수 있어 기존 단일 장르 필터와 다른 시각 언어를 사용한다.
+ *
+ * @prop {boolean} $active - 선택 여부
+ */
+export const SearchGenreToggle = styled.button`
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.md};
+  border-radius: ${({ theme }) => theme.radius.full};
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  background: ${({ theme }) => theme.colors.bgSecondary};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  font-weight: ${({ theme }) => theme.typography.fontMedium};
+  cursor: pointer;
+  transition: border-color ${({ theme }) => theme.transitions.fast},
+              color ${({ theme }) => theme.transitions.fast},
+              background-color ${({ theme }) => theme.transitions.fast},
+              transform ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.textPrimary};
+    transform: translateY(-1px);
+  }
+
+  ${({ $active, theme }) =>
+    $active &&
+    css`
+      background: ${theme.gradients.primary};
+      border-color: transparent;
+      color: white;
+      box-shadow: ${theme.glows.primary};
+    `}
+`;
+
+/**
  * 필터 영역 (장르 + 정렬) — space-between 가로 배치, flex-wrap.
  */
 export const Filters = styled.div`
@@ -608,6 +696,15 @@ export const Filters = styled.div`
   justify-content: space-between;
   gap: ${({ theme }) => theme.spacing.md};
   flex-wrap: wrap;
+`;
+
+/**
+ * 텍스트 검색이 없을 때 필터 영역의 좌측 자리를 차지하는 공간.
+ * 정렬 셀렉트가 오른쪽에 안정적으로 붙도록 유지한다.
+ */
+export const FilterSpacer = styled.div`
+  flex: 1;
+  min-width: 0;
 `;
 
 /**

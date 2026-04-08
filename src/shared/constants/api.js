@@ -139,6 +139,8 @@ export const MYPAGE_ENDPOINTS = {
 export const SEARCH_ENDPOINTS = {
   /** 통합 검색 - GET (query 파라미터 필요) */
   SEARCH: `${API_VERSION}/search`,
+  /** 검색용 장르 목록 - GET */
+  GENRES: `${API_VERSION}/search/genres`,
   /** 자동완성 - GET (query 파라미터 필요) */
   AUTOCOMPLETE: `${API_VERSION}/search/autocomplete`,
   /** 최근 검색어 조회 - GET (JWT 필요) */

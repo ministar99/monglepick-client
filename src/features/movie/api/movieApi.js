@@ -46,6 +46,16 @@ function normalizeSearchMovie(movie) {
 }
 
 /**
+ * 검색 페이지에서 사용할 장르 선택 옵션을 조회한다.
+ *
+ * @returns {Promise<Array<{label: string, aliases: Array<string>, contents_count: number}>>}
+ */
+export async function getSearchGenres() {
+  const data = await recommendApi.get(SEARCH_ENDPOINTS.GENRES);
+  return data?.genres || [];
+}
+
+/**
  * 영화를 검색한다.
  * 키워드, 장르, 정렬 등의 필터를 지원한다.
  *
@@ -53,6 +63,7 @@ function normalizeSearchMovie(movie) {
  * @param {string} params.query - 검색 키워드
  * @param {string} [params.searchType='all'] - 검색 대상 (all, title, director, actor)
  * @param {string} [params.genre] - 장르 필터
+ * @param {Array<string>} [params.genres] - 장르만 검색용 다중 선택 장르 목록
  * @param {string} [params.sort='relevance'] - 정렬 기준 (relevance, rating, date)
  * @param {number} [params.page=1] - 페이지 번호
  * @param {number} [params.size=20] - 페이지 크기
@@ -62,6 +73,7 @@ export async function searchMovies({
   query,
   searchType = 'all',
   genre,
+  genres = [],
   sort = 'relevance',
   page = 1,
   size = 20,
@@ -70,6 +82,7 @@ export async function searchMovies({
   const params = { page, size, search_type: searchType };
   if (query) params.q = query;
   if (genre) params.genre = genre;
+  if (genres.length > 0) params.genres = genres.join(',');
   if (sort === 'rating') {
     params.sort_by = 'rating';
     params.sort_order = 'desc';
