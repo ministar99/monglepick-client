@@ -73,8 +73,12 @@ import RecommendationPage from '../features/recommendation/pages/RecommendationP
 import PlaylistPage from '../features/playlist/pages/PlaylistPage';
 /* 업적/도장깨기 페이지 — features/achievement에서 가져옴 */
 import AchievementPage from '../features/achievement/pages/AchievementPage';
-/* 영화 퀴즈 페이지 — features/quiz에서 가져옴 (비로그인 열람 허용, 제출만 JWT 필수) */
-import QuizPage from '../features/quiz/pages/QuizPage';
+/*
+ * 영화 퀴즈 페이지 — v2 개편(2026-04-08)으로 CommunityPage 의 "오늘의 퀴즈" 탭으로 이관됨.
+ * /quiz 진입은 /community?tab=quiz 로 redirect 처리하므로 App.jsx 에서는 import 불필요.
+ * QuizPage 컴포넌트 자체는 features/quiz/pages/QuizPage.jsx 에 그대로 존재하며,
+ * CommunityPage 가 직접 import 하여 탭 본문으로 사용한다.
+ */
 /* 영화 월드컵 페이지 — features/worldcup에서 가져옴 */
 import WorldcupPage from '../features/worldcup/pages/WorldcupPage';
 /* 영화 로드맵 페이지 — features/roadmap에서 가져옴 */
@@ -325,18 +329,17 @@ function App() {
         />
 
         {/*
-          영화 퀴즈 페이지 — 오늘의 퀴즈 목록 표시.
-          비로그인 사용자도 문제 열람은 허용하며(PrivateRoute 제외),
-          정답 제출 시 submitQuizAnswer 내부의 requireAuth() 가드로
-          로그인 필요 에러가 발생해 QuizCard 에서 안내 메시지로 전환된다.
+          영화 퀴즈 페이지 — v2 개편 (2026-04-08).
+
+          기존 독립 페이지(`/quiz`)에서 CommunityPage 의 "오늘의 퀴즈" 탭으로 이관됨.
+          외부 링크/즐겨찾기/북마크 호환을 위해 `/quiz` 경로는 그대로 두되,
+          접근 시 `/community?tab=quiz` 로 영구 리다이렉트(replace) 한다.
+
+          replace=true 이유: 뒤로가기 시 `/quiz` 로 다시 돌아가지 않도록 히스토리 스택을 교체.
         */}
         <Route
           path="/quiz"
-          element={
-            <MainLayout>
-              <QuizPage />
-            </MainLayout>
-          }
+          element={<Navigate to="/community?tab=quiz" replace />}
         />
 
         {/* 영화 이상형 월드컵 (인증 필수) */}

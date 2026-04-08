@@ -308,7 +308,12 @@ export default function PaymentPage() {
     try {
       await requestTossPayment(
         {
-          orderType: 'POINT_CHARGE',
+          /*
+           * Backend PaymentOrder.OrderType enum 값과 정확히 일치해야 한다.
+           * (PaymentService.createOrder → OrderType.valueOf(orderType.toUpperCase()))
+           * 과거 'POINT_CHARGE'로 보내던 값을 'POINT_PACK'으로 통일한다 (설계서 v3.2 §13.1).
+           */
+          orderType: 'POINT_PACK',
           amount: pack.price,
           pointsAmount: pack.points,
         },

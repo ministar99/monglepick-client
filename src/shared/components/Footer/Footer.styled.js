@@ -1,9 +1,13 @@
 /**
  * Footer styled-components.
  *
- * 3컬럼 레이아웃 (로고/퀵링크/팀정보) + 그라데이션 구분선 + 저작권.
+ * 4컬럼 레이아웃 (로고/서비스/계정/팀정보) + 그라데이션 구분선 + 저작권.
  * glassmorphism 배경 + 로고 gradient-text + 링크 호버 글로우.
  * 모바일에서는 1컬럼 스택으로 전환된다.
+ *
+ * v2 개편 (2026-04-08): 헤더 v2 의 도메인 구조와 정합 맞추기 위해 3컬럼→4컬럼 확장.
+ *   - 기존 3컬럼: [브랜드 2fr | 퀵링크 1fr | 팀정보 1fr]
+ *   - 신규 4컬럼: [브랜드 2fr | 서비스 1fr | 계정 1fr | 팀정보 1fr]
  */
 
 import styled from 'styled-components';
@@ -45,13 +49,24 @@ export const Inner = styled.div`
   gap: ${({ theme }) => theme.spacing.lg};
 `;
 
-/** 3컬럼 레이아웃 */
+/**
+ * 4컬럼 레이아웃 — [브랜드 / 서비스 / 계정 / 팀정보].
+ *
+ * 데스크톱: 2fr 1fr 1fr 1fr — 브랜드 영역(로고+설명)을 두 배 너비로 강조.
+ * 태블릿(<=768px): 2x2 그리드 — 4컬럼이 한 줄에 다 들어가지 않으므로 두 줄로.
+ * 모바일(<=480px): 단일 컬럼 스택.
+ */
 export const Columns = styled.div`
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: ${({ theme }) => theme.spacing.xxl};
 
   ${media.tablet} {
+    grid-template-columns: 1fr 1fr;
+    gap: ${({ theme }) => theme.spacing.xl};
+  }
+
+  ${media.mobile} {
     grid-template-columns: 1fr;
     gap: ${({ theme }) => theme.spacing.xl};
     text-align: center;

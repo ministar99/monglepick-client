@@ -26,8 +26,19 @@ export default function Header() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   // 데스크톱 유저 드롭다운 열림/닫힘 상태
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  /*
+   * 상단 NAV 드롭다운(`AI 추천`, `마이 픽` 등)의 개폐 상태.
+   *
+   * - 데스크톱에서는 한 번에 하나만 열리므로 단일 문자열(현재 열린 항목의 key) 또는 null.
+   * - 모바일(햄버거 메뉴) 안에서는 여러 섹션이 동시에 펼쳐져도 자연스러우므로
+   *   Set 으로 관리한다 → 각 키의 토글이 독립.
+   */
+  const [openNavDropdown, setOpenNavDropdown] = useState(null);
+  const [openMobileSections, setOpenMobileSections] = useState(() => new Set());
   // 드롭다운 외부 클릭 감지를 위한 래퍼 ref
   const userMenuRef = useRef(null);
+  // 상단 NAV 영역 전체 — 외부 클릭 시 NAV 드롭다운 닫기 위한 ref
+  const navRef = useRef(null);
 
   // 모바일 메뉴 열릴 때 body 스크롤 잠금
   useEffect(() => {
@@ -36,7 +47,7 @@ export default function Header() {
   }, [isMobileMenuOpen]);
 
   /*
-   * 드롭다운 외부 클릭 감지.
+   * 유저 아바타 드롭다운 외부 클릭 감지.
    * 트리거(UserInfo 버튼)를 포함한 래퍼 바깥을 클릭하면 닫는다.
    * mousedown을 쓰는 이유: click보다 먼저 발생해 자연스러운 닫힘 UX 제공.
    */
@@ -61,12 +72,39 @@ export default function Header() {
   }, [isUserMenuOpen]);
 
   /*
+   * 상단 NAV 드롭다운 외부 클릭 감지.
+   * Nav 컨테이너 바깥을 클릭하면 열려있던 드롭다운을 닫는다.
+   * 다른 NAV 트리거 클릭은 onClick 핸들러가 직접 토글하므로 여기선 무시.
+   */
+  useEffect(() => {
+    if (!openNavDropdown) return undefined;
+
+    const handleClickOutside = (e) => {
+      if (navRef.current && !navRef.current.contains(e.target)) {
+        setOpenNavDropdown(null);
+      }
+    };
+    const handleEsc = (e) => {
+      if (e.key === 'Escape') setOpenNavDropdown(null);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEsc);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEsc);
+    };
+  }, [openNavDropdown]);
+
+  /*
    * 라우트 변경 시 드롭다운/모바일 메뉴 자동 닫기.
    * 항목 클릭 → 페이지 이동 → 메뉴 자동 닫힘 흐름을 보장한다.
    */
   useEffect(() => {
     setIsUserMenuOpen(false);
     setIsMobileMenuOpen(false);
+    setOpenNavDropdown(null);
+    setOpenMobileSections(new Set());
   }, [location.pathname]);
 
   /**
@@ -92,6 +130,48 @@ export default function Header() {
   }, []);
 
   /**
+   * 상단 NAV 드롭다운(`AI 추천`/`마이 픽`) 토글 — 데스크톱.
+   *
+   * 한 번에 하나만 열리도록, 같은 키를 다시 누르면 닫고 다른 키를 누르면 그 키로 교체.
+   * 클릭 즉시 유저 드롭다운은 닫는다(겹쳐 보이는 현상 방지).
+   */
+  const toggleNavDropdown = useCallback((key) => {
+    setOpenNavDropdown((prev) => (prev === key ? null : key));
+    setIsUserMenuOpen(false);
+  }, []);
+
+  /**
+   * 모바일 햄버거 메뉴 안의 섹션(드롭다운 항목) 펼침/접힘 토글.
+   *
+   * 데스크톱과 달리 여러 섹션을 동시에 펼칠 수 있도록 Set 으로 관리한다.
+   */
+  const toggleMobileSection = useCallback((key) => {
+    setOpenMobileSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  }, []);
+
+  /**
+   * NAV 항목 노출 여부 판정 — `requiresAuth: true` 면 로그인 사용자에게만 노출.
+   *
+   * "마이 픽" 탭은 비로그인 사용자에게는 클릭해도 의미 있는 콘텐츠가 없으므로
+   * 아예 헤더에서 숨긴다(로그인 후에만 등장).
+   */
+  const isNavItemVisible = (item) => !item.requiresAuth || isAuthenticated;
+
+  /**
+   * 드롭다운 트리거의 활성 상태 판정 — 자식 항목 중 어느 하나라도 현재 경로와 일치하는지.
+   *
+   * 활성 시 트리거 버튼이 primaryLight 배경 + 글로우 점으로 강조되어,
+   * 사용자가 현재 페이지가 어느 그룹에 속하는지 한눈에 알 수 있다.
+   */
+  const isDropdownActive = (children) =>
+    children?.some((child) => child.path === location.pathname) ?? false;
+
+  /**
    * 로그아웃 버튼 클릭 핸들러.
    * useAuthStore.logout이 async (서버 로그아웃 포함)이므로 await로 완료를 기다린다.
    * 서버 요청 실패 시에도 logout() 내부에서 best-effort 처리하므로
@@ -115,18 +195,86 @@ export default function Header() {
           <S.LogoText>몽글픽</S.LogoText>
         </S.LogoLink>
 
-        {/* ── 네비게이션 링크 (데스크톱) ── */}
-        <S.Nav $isOpen={isMobileMenuOpen}>
-          {NAV_ITEMS.map((item) => (
-            <S.NavLink
-              key={item.path}
-              to={item.path}
-              $active={location.pathname === item.path}
-              onClick={closeMobileMenu}
-            >
-              {item.label}
-            </S.NavLink>
-          ))}
+        {/*
+          ── 네비게이션 링크 (데스크톱 + 모바일 햄버거) ──
+
+          NAV_ITEMS 의 두 가지 항목 타입을 동시에 처리:
+            1) 단일 링크: { path, label }                    → <NavLink>
+            2) 드롭다운:  { children: [{ path, label }, ...] } → <NavDropdownTrigger> + <NavDropdownPanel>
+
+          데스크톱에서는 드롭다운이 absolute 패널로 떠오르고,
+          모바일(햄버거)에서는 같은 마크업이 column flex 흐름에 편입되어
+          접이식 섹션처럼 동작한다(스타일에서 분기 처리).
+        */}
+        <S.Nav ref={navRef} $isOpen={isMobileMenuOpen}>
+          {NAV_ITEMS.filter(isNavItemVisible).map((item) => {
+            /* ── 드롭다운(자식 있음) ── */
+            if (item.children) {
+              const childActive = isDropdownActive(item.children);
+              const isOpen = openNavDropdown === item.key;
+              const isMobileOpen = openMobileSections.has(item.key);
+              /* 데스크톱: openNavDropdown 으로 통제 / 모바일: openMobileSections 로 통제 */
+              const shouldShowPanel = isOpen || isMobileOpen;
+
+              return (
+                <S.NavDropdownWrapper key={item.key}>
+                  <S.NavDropdownTrigger
+                    type="button"
+                    $active={childActive}
+                    onClick={() => {
+                      /*
+                       * 데스크톱과 모바일 모두에 동작하도록 양쪽 토글을 호출한다.
+                       * CSS media query 로 어느 쪽이 보일지가 결정되므로,
+                       * 두 상태를 동시에 갱신해도 시각적 충돌은 발생하지 않는다.
+                       */
+                      toggleNavDropdown(item.key);
+                      toggleMobileSection(item.key);
+                    }}
+                    aria-haspopup="menu"
+                    aria-expanded={shouldShowPanel}
+                  >
+                    {item.label}
+                    <S.NavDropdownCaret $open={shouldShowPanel} aria-hidden="true">
+                      ▾
+                    </S.NavDropdownCaret>
+                  </S.NavDropdownTrigger>
+
+                  {shouldShowPanel && (
+                    <S.NavDropdownPanel role="menu">
+                      {item.children.map((child) => (
+                        <S.NavDropdownItem
+                          key={child.path}
+                          to={child.path}
+                          role="menuitem"
+                          $active={location.pathname === child.path}
+                          onClick={() => {
+                            /* 항목 선택 → 양쪽 드롭다운 닫고 모바일 메뉴까지 닫음 */
+                            setOpenNavDropdown(null);
+                            setOpenMobileSections(new Set());
+                            closeMobileMenu();
+                          }}
+                        >
+                          {child.label}
+                        </S.NavDropdownItem>
+                      ))}
+                    </S.NavDropdownPanel>
+                  )}
+                </S.NavDropdownWrapper>
+              );
+            }
+
+            /* ── 단일 링크 (검색, 커뮤니티 등) ── */
+            return (
+              <S.NavLink
+                key={item.key || item.path}
+                to={item.path}
+                $active={location.pathname === item.path}
+                onClick={closeMobileMenu}
+              >
+                {item.label}
+              </S.NavLink>
+            );
+          })}
 
           {/* ── 테마 토글 (모바일 메뉴 내부 전용 — 데스크톱에서는 숨김) ── */}
           <S.MobileOnly>
@@ -135,18 +283,19 @@ export default function Header() {
 
           {/*
             인증 영역 (모바일 메뉴 내부).
-            로그인 상태에서는 USER_MENU_ITEMS를 NavLink 형태로 평탄화해
-            햄버거 메뉴 안에서 모든 유저 기능(마이페이지/포인트/결제/추천내역
-            /플레이리스트/업적/로드맵/고객센터)을 한눈에 노출한다.
+
+            v2 개편으로 USER_MENU_ITEMS 가 5개로 축소됨(마이페이지/포인트/결제·구독/고객센터).
+            콘텐츠성 항목(추천내역/플레이리스트/업적/로드맵/월드컵)은 위 NAV "마이 픽"
+            드롭다운에서 이미 노출되므로 여기서는 계정/결제/지원 영역만 보여준다.
           */}
           <S.AuthSection $mobile>
             {isAuthenticated ? (
               <>
-                {USER_MENU_ITEMS.map((item) =>
+                {USER_MENU_ITEMS.map((item, idx) =>
                   /* divider 항목은 모바일에서는 시각적 구분이 불필요하므로 스킵 */
                   item.divider ? null : (
                     <S.NavLink
-                      key={item.path}
+                      key={item.path || `divider-${idx}`}
                       to={item.path}
                       $active={location.pathname === item.path}
                       onClick={closeMobileMenu}

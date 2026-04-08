@@ -151,17 +151,32 @@ export const ItemHeader = styled.div`
   flex-wrap: wrap;
 `;
 
-/** 작성자 + 시간 묶음 */
+/**
+ * 작성자 + 시간 묶음.
+ * 2026-04-08 — 가시성 보강: textXs(12px) → textSm(14px) 로 키워 시간 표시가 잘 보이도록 함.
+ */
 export const Author = styled.div`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
-  font-size: ${({ theme }) => theme.typography.textXs};
-  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  color: ${({ theme }) => theme.colors.textSecondary};
 `;
 
-/** 작성자 닉네임/아이디 */
+/** 작성자 닉네임/아이디 — 굵게 강조 */
 export const AuthorName = styled.span`
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-weight: ${({ theme }) => theme.typography.fontSemibold};
+`;
+
+/**
+ * 작성자 옆 작성 시간 (예: "· 3분 전").
+ *
+ * 2026-04-08 추가 — 기존엔 inline span 으로만 렌더하여 textMuted/textXs 폰트 때문에
+ * 거의 안 보였던 문제를 해결. 명시적 styled 컴포넌트로 분리하여 색/크기/굵기 통제.
+ */
+export const AuthorTime = styled.span`
+  font-size: ${({ theme }) => theme.typography.textSm};
   color: ${({ theme }) => theme.colors.textSecondary};
   font-weight: ${({ theme }) => theme.typography.fontMedium};
 `;

@@ -212,9 +212,18 @@ export default function CommentSection({ postId }) {
                 <S.ItemHeader>
                   <S.Author>
                     <S.AuthorName>
-                      {comment.userId || '익명'}
+                      {/*
+                        2026-04-08 — 작성자 표시 우선순위:
+                          1) nickname (백엔드 LEFT JOIN users 결과, 표시용)
+                          2) userId   (식별자, 폴백)
+                          3) '익명'   (최종 폴백)
+                        기존엔 userId 만 사용해 "user_001" 같은 식별자가 노출되는 이슈가 있었음.
+                      */}
+                      {comment.nickname || comment.userId || '익명'}
                     </S.AuthorName>
-                    <span>· {formatRelativeTime(comment.createdAt)}</span>
+                    <S.AuthorTime>
+                      · {formatRelativeTime(comment.createdAt)}
+                    </S.AuthorTime>
                   </S.Author>
                 </S.ItemHeader>
 

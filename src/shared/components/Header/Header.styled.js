@@ -97,7 +97,12 @@ export const Nav = styled.nav`
   }
 `;
 
-/** 네비게이션 링크 */
+/**
+ * 네비게이션 링크.
+ *
+ * v2 개편 (2026-04-08): 활성 표시는 글로우 점이 아니라
+ * primary 색 텍스트 + primaryLight 배경 만으로 처리(더 깔끔).
+ */
 export const NavLink = styled(Link)`
   padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
   border-radius: ${({ theme }) => theme.radius.md};
@@ -116,30 +121,178 @@ export const NavLink = styled(Link)`
     background-color: ${({ theme }) => theme.colors.bgElevated};
   }
 
-  /* 활성 링크 하단 글로우 점 */
-  ${({ $active, theme }) =>
-    $active &&
-    css`
-      &::after {
-        content: '';
-        position: absolute;
-        bottom: 2px;
-        left: 50%;
-        transform: translateX(-50%);
-        width: 6px;
-        height: 6px;
-        border-radius: ${theme.radius.full};
-        background-color: ${theme.colors.primary};
-        box-shadow: ${theme.glows.primary};
-      }
-    `}
-
   ${media.tablet} {
     font-size: ${({ theme }) => theme.typography.textLg};
     padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg}`};
     border-radius: ${({ theme }) => theme.radius.lg};
   }
 `;
+
+/* ============================================================ */
+/*  상단 NAV 드롭다운 (v2 개편 — AI 추천 / 마이 픽 등)              */
+/* ============================================================ */
+
+/**
+ * NAV 드롭다운 래퍼 — 트리거 버튼과 패널을 감싸는 위치 기준점.
+ *
+ * `position: relative` 가 있어야 NavDropdownPanel 이 트리거 바로 아래로 정렬된다.
+ * 모바일(햄버거 메뉴 내부)에서는 드롭다운이 아니라 접이식 섹션으로 평탄화되므로
+ * 위치 기준이 의미가 없어진다 — Nav 컨테이너가 column flex 로 동작.
+ */
+export const NavDropdownWrapper = styled.div`
+  position: relative;
+  display: inline-flex;
+
+  ${media.tablet} {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+  }
+`;
+
+/**
+ * NAV 드롭다운 트리거 버튼 — NavLink 와 동일한 외형 + ▾ 캐럿.
+ *
+ * NavLink 가 <Link> 컴포넌트인 데 비해, 트리거는 자체 path 가 없으므로 <button>.
+ * `$active` 는 드롭다운 자식 중 어느 하나라도 현재 경로와 일치할 때 true.
+ *
+ * v2 개편 (2026-04-08): 활성 표시를 글로우 점이 아닌 primary 색 텍스트 + primaryLight 배경
+ * 만으로 처리하여 NavLink 와 일관된 시각 언어를 유지.
+ */
+export const NavDropdownTrigger = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+  border: none;
+  background: ${({ $active, theme }) =>
+    $active ? theme.colors.primaryLight : 'transparent'};
+  border-radius: ${({ theme }) => theme.radius.md};
+  color: ${({ $active, theme }) =>
+    $active ? theme.colors.primary : theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  font-weight: ${({ theme }) => theme.typography.fontMedium};
+  font-family: inherit;
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transitions.fast};
+  position: relative;
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.textPrimary};
+    background-color: ${({ theme }) => theme.colors.bgElevated};
+  }
+
+  /* 모바일에서는 섹션 헤더처럼 동작 — 풀너비 + 큰 폰트 */
+  ${media.tablet} {
+    width: 100%;
+    justify-content: space-between;
+    font-size: ${({ theme }) => theme.typography.textLg};
+    padding: ${({ theme }) => `${theme.spacing.md} ${theme.spacing.lg}`};
+    border-radius: ${({ theme }) => theme.radius.lg};
+  }
+`;
+
+/**
+ * NAV 드롭다운 트리거의 캐럿 — 열림 시 180도 회전.
+ *
+ * 가시성 보정 이력 (2026-04-08):
+ *   1차: 10px → 14px + bold
+ *   2차: 14px → 18px (사용자 피드백 — 더 잘 보여야 함)
+ *
+ * - 색상은 inherit(currentColor) — 트리거 버튼의 활성/호버 색을 그대로 따라감
+ * - 굵은 문자 weight + 살짝 큰 line-height 로 가시성 향상
+ * - 라벨과의 시각적 균형을 위해 좌측 마진 살짝 확보
+ *
+ * 글리프는 프로젝트 전반(SearchPage SortArrow 등)에서 쓰는 ▾ 컨벤션을 유지.
+ */
+export const NavDropdownCaret = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: inherit;
+  font-weight: ${({ theme }) => theme.typography.fontBold};
+  margin-left: 2px;
+  transition: transform ${({ theme }) => theme.transitions.fast};
+  transform: ${({ $open }) => ($open ? 'rotate(180deg)' : 'rotate(0deg)')};
+`;
+
+/**
+ * NAV 드롭다운 패널 — 데스크톱에서 트리거 바로 아래에 absolute.
+ *
+ * UserDropdown 과 동일한 글래스 모피즘 + 그림자.
+ * 모바일에서는 햄버거 메뉴 안에서 일반 흐름으로 그대로 펼쳐지도록
+ * absolute 해제 + 좌측 들여쓰기.
+ */
+export const NavDropdownPanel = styled.div`
+  position: absolute;
+  top: calc(100% + ${({ theme }) => theme.spacing.xs});
+  left: 0;
+  min-width: 200px;
+  padding: ${({ theme }) => theme.spacing.xs};
+  background-color: ${({ theme }) => theme.header.bg};
+  backdrop-filter: blur(20px) saturate(1.8);
+  -webkit-backdrop-filter: blur(20px) saturate(1.8);
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.lg};
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  z-index: ${({ theme }) => theme.zIndex.dropdown ?? 100};
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+
+  /* 모바일 — absolute 해제, 햄버거 메뉴 흐름에 편입 */
+  ${media.tablet} {
+    position: static;
+    min-width: 0;
+    margin-top: ${({ theme }) => theme.spacing.xs};
+    margin-left: ${({ theme }) => theme.spacing.md};
+    padding: 0;
+    background: transparent;
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: none;
+    border-left: 2px solid ${({ theme }) => theme.colors.borderDefault};
+    border-radius: 0;
+    box-shadow: none;
+    padding-left: ${({ theme }) => theme.spacing.md};
+  }
+`;
+
+/**
+ * NAV 드롭다운 패널 내부의 단일 메뉴 항목 (Link).
+ *
+ * UserDropdown 의 DropdownItem 과 동일 스타일을 별도 컴포넌트로 정의해
+ * 향후 NAV/유저 메뉴 스타일이 갈라질 때 영향 격리.
+ */
+export const NavDropdownItem = styled(Link)`
+  display: flex;
+  align-items: center;
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+  border-radius: ${({ theme }) => theme.radius.md};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  font-weight: ${({ theme }) => theme.typography.fontMedium};
+  color: ${({ $active, theme }) =>
+    $active ? theme.colors.primary : theme.colors.textSecondary};
+  background-color: ${({ $active, theme }) =>
+    $active ? theme.colors.primaryLight : 'transparent'};
+  text-decoration: none;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    color: ${({ theme }) => theme.colors.textPrimary};
+    background-color: ${({ theme }) => theme.colors.bgElevated};
+  }
+
+  /* 모바일에서 본문 텍스트 살짝 키우기 */
+  ${media.tablet} {
+    font-size: ${({ theme }) => theme.typography.textBase};
+    padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+  }
+`;
+
+/* ============================================================ */
 
 /** 인증 버튼 영역 */
 export const AuthSection = styled.div`
@@ -261,12 +414,21 @@ export const UserInfo = styled.button`
     `}
 `;
 
-/** 트리거 우측 ▾ 화살표 — 열림 상태에서 180도 회전 */
+/**
+ * 트리거 우측 ▾ 화살표 — 열림 상태에서 180도 회전.
+ *
+ * NavDropdownCaret 과 동일한 가시성 보정 (2026-04-08): 18px + bold + 좌측 마진.
+ * 헤더의 모든 드롭다운 캐럿이 같은 크기/굵기로 통일된다.
+ */
 export const UserMenuCaret = styled.span`
-  display: inline-block;
-  font-size: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
   line-height: 1;
-  color: ${({ theme }) => theme.colors.textMuted};
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-weight: ${({ theme }) => theme.typography.fontBold};
+  margin-left: 2px;
   transition: transform ${({ theme }) => theme.transitions.fast};
   transform: ${({ $open }) => ($open ? 'rotate(180deg)' : 'rotate(0deg)')};
 `;

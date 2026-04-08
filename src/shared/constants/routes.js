@@ -98,40 +98,76 @@ export function buildPath(route, params = {}) {
 }
 
 /**
- * 네비게이션 메뉴에 표시할 항목 목록.
- * Header 컴포넌트에서 반복 렌더링에 사용한다.
+ * 네비게이션 메뉴(상단 NAV)에 표시할 항목 목록.
+ *
+ * v2 개편 (2026-04-08) — 도메인 기반 4탭 구조:
+ *   1) AI 추천 ▾   (드롭다운) — 채팅 추천, 둘이 영화 고르기
+ *   2) 검색          (단일 링크) — 영화 검색
+ *   3) 커뮤니티      (단일 링크) — 게시판 + 리뷰 (퀴즈/월드컵은 이관)
+ *   4) 마이 픽 ▾   (로그인 시만, 드롭다운) — 추천내역/플레이리스트/로드맵/업적/월드컵
+ *
+ * NOTE: "홈" 은 상단 탭으로 노출하지 않고 로고 아이콘 클릭으로 대체한다.
+ * NOTE: 퀴즈(`/quiz`)는 커뮤니티 게시판 카테고리로 통합될 예정이므로 헤더 메뉴에서 제거한다.
+ *
+ * 항목 스키마:
+ *   - `key`       : 리액트 key 및 드롭다운 개폐 식별자 (필수)
+ *   - `label`     : 탭에 표시될 한국어 라벨 (필수)
+ *   - `path`      : 단일 링크 탭의 이동 경로 (children 없는 경우)
+ *   - `children`  : 드롭다운 항목 배열 ([{ path, label }, ...])
+ *   - `requiresAuth` : true 면 비로그인 사용자에게 탭 자체를 숨김
  */
 export const NAV_ITEMS = [
-  { path: ROUTES.HOME, label: '홈' },              // /home (영화 목록)
-  { path: ROUTES.CHAT, label: 'AI 추천' },          // /chat (SSE 스트리밍 채팅)
-  { path: ROUTES.MATCH, label: '둘이 영화 고르기' },    // /match (두 영화 교집합 추천)
-  { path: ROUTES.WORLDCUP, label: '영화 월드컵' },    // /worldcup (이상형 월드컵)
-  { path: ROUTES.COMMUNITY, label: '커뮤니티' },     // /community (게시판 + 리뷰)
-  { path: ROUTES.SEARCH, label: '검색' },           // /search (키워드 + 필터)
+  {
+    key: 'ai-recommend',
+    label: 'AI 추천',
+    children: [
+      { path: ROUTES.CHAT, label: 'AI 채팅 추천' },   // /chat (SSE 스트리밍 채팅)
+      { path: ROUTES.MATCH, label: '둘이 영화 고르기' }, // /match (두 영화 교집합 추천)
+    ],
+  },
+  {
+    key: 'search',
+    label: '검색',
+    path: ROUTES.SEARCH,                              // /search (키워드 + 필터)
+  },
+  {
+    key: 'community',
+    label: '커뮤니티',
+    path: ROUTES.COMMUNITY,                           // /community (게시판 + 리뷰 + 퀴즈 카테고리)
+  },
+  {
+    key: 'my-pick',
+    label: '마이 픽',
+    requiresAuth: true,
+    children: [
+      { path: ROUTES.RECOMMENDATIONS, label: '추천 내역' }, // /recommendations
+      { path: ROUTES.PLAYLIST, label: '플레이리스트' },     // /playlist
+      { path: ROUTES.ROADMAP, label: '영화 로드맵' },       // /roadmap
+      { path: ROUTES.ACHIEVEMENT, label: '업적·도장깨기' }, // /achievement
+      { path: ROUTES.WORLDCUP, label: '영화 월드컵' },      // /worldcup (이상형 월드컵)
+    ],
+  },
 ];
 
 /**
- * 로그인한 사용자 전용 메뉴 항목 목록.
+ * 로그인한 사용자 전용 계정 메뉴(우상단 아바타 드롭다운) 항목 목록.
  *
- * Header 우상단 유저 아바타 클릭 시 펼쳐지는 드롭다운과
- * 모바일 햄버거 메뉴 내부 인증 섹션에서 공용으로 사용한다.
+ * v2 개편 (2026-04-08) — "내 계정 관리" 전용으로 역할 축소:
+ *   기존 11개 항목(콘텐츠성 포함) → 5개 항목(계정/결제/지원)만 남김.
+ *   콘텐츠성 항목(추천내역/플레이리스트/업적/로드맵/월드컵)은 상단 NAV "마이 픽"으로 이관.
  *
- * 항목 구성 원칙:
- *   1) 프로필(루트) → 2) 콘텐츠 그룹(추천/플레이리스트/업적/로드맵)
- *   → 3) 결제·리워드 그룹(포인트/결제) → 4) 지원(고객센터)
+ * 항목 구성:
+ *   1) 프로필: 마이페이지
+ *   2) 결제·리워드: 포인트, 결제·구독
+ *   3) 지원: 고객센터
+ *   (+ 로그아웃은 Header 컴포넌트에서 별도 렌더링)
  *
  * 그룹 구분을 위해 `divider: true` 항목을 섞어둔다.
  * 드롭다운 렌더러는 이 플래그를 만나면 구분선만 출력하고 path는 무시한다.
  */
 export const USER_MENU_ITEMS = [
+  /* 프로필 */
   { path: ROUTES.MYPAGE, label: '마이페이지' },          // /mypage
-  { divider: true },
-  /* 콘텐츠 그룹 — AI 추천 결과/소장/도전과제/학습 코스 */
-  { path: ROUTES.RECOMMENDATIONS, label: '추천 내역' },  // /recommendations
-  { path: ROUTES.PLAYLIST, label: '플레이리스트' },       // /playlist
-  { path: ROUTES.ACHIEVEMENT, label: '업적·도장깨기' },  // /achievement
-  { path: ROUTES.QUIZ, label: '영화 퀴즈' },            // /quiz (오늘의 퀴즈)
-  { path: ROUTES.ROADMAP, label: '영화 로드맵' },        // /roadmap
   { divider: true },
   /* 결제·리워드 그룹 — 단일 재화(포인트) + 결제/구독 */
   { path: ROUTES.POINT, label: '포인트' },              // /point

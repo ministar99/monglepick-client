@@ -13,7 +13,21 @@
  * 비로그인 사용자도 문제 열람은 가능하지만, 제출 시 submitQuizAnswer 내부의
  * requireAuth()에 의해 에러가 throw 되므로 QuizCard 에서 친절한 안내로 변환한다.
  *
+ * <h3>embedded 모드 (2026-04-08 추가)</h3>
+ * <p>다른 페이지 안에 임베드되어 사용될 때 페이지 헤더 중복을 방지하기 위한 prop.
+ * CommunityPage 의 "오늘의 퀴즈" 탭에서 임베드 사용 중.</p>
+ * <ul>
+ *   <li><b>false</b> (기본, standalone): 자체 Container + Header(PageTitle/PageDesc) +
+ *       StatsBar + 카드 목록을 모두 렌더 — 기존 동작과 동일</li>
+ *   <li><b>true</b> (embedded): Container 폭 제한과 Header 를 생략하고
+ *       StatsBar 부터 카드 목록만 부모의 본문 흐름에 그대로 노출 → 부모 페이지 헤더와의
+ *       시각적 중복(두 개의 페이지 타이틀이 한 화면에 보이는 문제)을 해소한다</li>
+ * </ul>
+ *
  * @module features/quiz/pages/QuizPage
+ *
+ * @param {Object} [props]
+ * @param {boolean} [props.embedded=false] - 다른 페이지에 임베드되어 호출되면 true
  */
 
 import { useState, useEffect, useCallback } from 'react';
@@ -21,7 +35,7 @@ import { getTodayQuizzes } from '../api/quizApi';
 import QuizCard from '../components/QuizCard';
 import * as S from './QuizPage.styled';
 
-export default function QuizPage() {
+export default function QuizPage({ embedded = false }) {
   /** 오늘의 퀴즈 목록 (백엔드 QuizResponse[]) */
   const [quizzes, setQuizzes] = useState([]);
   /** 초기 로딩 여부 */
@@ -54,18 +68,15 @@ export default function QuizPage() {
     loadQuizzes();
   }, [loadQuizzes]);
 
-  return (
-    <S.Container>
-      {/* ── 페이지 헤더 ── */}
-      <S.Header>
-        <S.PageTitle>오늘의 영화 퀴즈</S.PageTitle>
-        <S.PageDesc>
-          영화에 대한 퀴즈를 풀고 포인트를 획득해보세요!
-          <br />
-          정답을 맞추면 최초 1회에 한해 리워드 포인트가 지급됩니다.
-        </S.PageDesc>
-      </S.Header>
-
+  /*
+   * ── 렌더 본문 (embedded/standalone 공용) ──
+   *
+   * 페이지 헤더(Header/PageTitle/PageDesc) 만 embedded 모드에서 생략하고,
+   * 통계바·로딩·에러·빈 상태·카드 목록은 양쪽 모두 동일하게 렌더한다.
+   * 변수로 추출하여 standalone Container 와 embedded Fragment 모두에서 재사용한다.
+   */
+  const body = (
+    <>
       {/* ── 상단 통계 요약 ── */}
       <S.StatsBar>
         <S.StatItem>
@@ -118,6 +129,33 @@ export default function QuizPage() {
           ))}
         </S.QuizList>
       )}
+    </>
+  );
+
+  /*
+   * ── embedded 모드 ──
+   *
+   * 부모 페이지(예: CommunityPage) 가 이미 페이지 헤더(타이틀/설명) 와 폭 제한 컨테이너를
+   * 제공하므로, 자체 Container 와 Header 를 생략하고 본문(body) 만 부모 흐름에 그대로 노출한다.
+   * Fragment 를 사용해 추가 DOM 노드를 만들지 않는다.
+   */
+  if (embedded) {
+    return body;
+  }
+
+  /* ── standalone 모드 (기존 /quiz 라우트 진입 등) — 자체 Container + Header 포함 ── */
+  return (
+    <S.Container>
+      {/* ── 페이지 헤더 ── */}
+      <S.Header>
+        <S.PageTitle>오늘의 영화 퀴즈</S.PageTitle>
+        <S.PageDesc>
+          영화에 대한 퀴즈를 풀고 포인트를 획득해보세요!
+          <br />
+          정답을 맞추면 최초 1회에 한해 리워드 포인트가 지급됩니다.
+        </S.PageDesc>
+      </S.Header>
+      {body}
     </S.Container>
   );
 }

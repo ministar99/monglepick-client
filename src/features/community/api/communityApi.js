@@ -16,14 +16,44 @@ import { COMMUNITY_ENDPOINTS } from '../../../shared/constants/api';
 /**
  * 게시글 목록을 조회한다.
  *
+ * <h3>응답 정합성 (2026-04-08 수정)</h3>
+ * <p>Backend PostController.getPosts 는 Spring {@code Page<PostResponse>} 를 반환하므로,
+ * 응답 구조는 {@code { content: [...], totalElements, totalPages, number, ... }} 이다.
+ * 기존 코드는 {@code result.posts} 를 찾았으나 백엔드는 {@code content} 키를 사용한다.
+ * 이 함수는 호출 측이 한 번에 사용하기 편하도록 응답을 normalize 하여 반환한다.</p>
+ *
+ * <h3>페이지 인덱스</h3>
+ * <p>Spring Page 는 0-indexed 이다 (page=0 이 첫 페이지). 호출 측은 1-indexed 로
+ * 사용해도 되도록 이 함수가 내부에서 1→0 변환을 수행한다.</p>
+ *
  * @param {Object} [params={}] - 조회 파라미터
- * @param {number} [params.page=1] - 페이지 번호
+ * @param {number} [params.page=1] - 페이지 번호 (1-indexed, 사용자 친화적)
  * @param {number} [params.size=20] - 페이지 크기
- * @param {string} [params.sort='latest'] - 정렬 기준 (latest, popular)
- * @returns {Promise<Object>} 게시글 목록 ({ posts: [], total: number, page: number })
+ * @param {string} [params.sort='latest'] - 정렬 기준 (latest, popular) — 현재 백엔드 미사용
+ * @param {string} [params.category] - 카테고리 필터 (general/review/question, 미지정 시 전체)
+ * @returns {Promise<{ posts: Array, total: number, page: number, totalPages: number }>}
+ *          정규화된 게시글 목록 응답
  */
-export async function getPosts({ page = 1, size = 20, sort = 'latest' } = {}) {
-  return api.get(COMMUNITY_ENDPOINTS.POSTS, { params: { page, size, sort } });
+export async function getPosts({ page = 1, size = 20, sort = 'latest', category } = {}) {
+  /* Spring Page 는 0-indexed → 1-indexed UI 와의 변환 (음수 방지 가드) */
+  const zeroBasedPage = Math.max(0, page - 1);
+
+  const params = { page: zeroBasedPage, size, sort };
+  /* 카테고리는 선택 — 비었거나 'all' 이면 백엔드에 전달하지 않음(전체 조회) */
+  if (category && category !== 'all') {
+    params.category = category;
+  }
+
+  /* axios 응답 인터셉터가 response.data 를 unwrap → Spring Page 객체가 그대로 도착 */
+  const pageData = await api.get(COMMUNITY_ENDPOINTS.POSTS, { params });
+
+  /* 호출 측 친화적인 형태로 normalize */
+  return {
+    posts: pageData?.content ?? [],
+    total: pageData?.totalElements ?? 0,
+    page: (pageData?.number ?? 0) + 1,           /* 사용자 시점 1-indexed */
+    totalPages: pageData?.totalPages ?? 0,
+  };
 }
 
 /**

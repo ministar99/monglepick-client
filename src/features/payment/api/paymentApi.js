@@ -19,7 +19,7 @@ import { PAYMENT_ENDPOINTS, SUBSCRIPTION_ENDPOINTS } from '../../../shared/const
  * 생성된 orderId와 clientKey로 Toss Payments SDK를 호출한다.
  *
  * @param {Object} orderData - 주문 데이터
- * @param {string} orderData.orderType - 주문 유형 ('POINT_CHARGE' 또는 'SUBSCRIPTION')
+ * @param {string} orderData.orderType - 주문 유형 ('POINT_PACK' 또는 'SUBSCRIPTION') — Backend enum과 일치 필수
  * @param {number} orderData.amount - 결제 금액 (원)
  * @param {number} [orderData.pointsAmount] - 충전할 포인트 수량 (포인트 충전 시)
  * @param {string} [orderData.planCode] - 구독 상품 코드 (구독 결제 시)
