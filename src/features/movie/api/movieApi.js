@@ -83,7 +83,10 @@ export async function searchMovies({
   if (query) params.q = query;
   if (genre) params.genre = genre;
   if (genres.length > 0) params.genres = genres.join(',');
-  if (sort === 'rating') {
+  if (sort === 'relevance') {
+    params.sort_by = 'relevance';
+    params.sort_order = 'desc';
+  } else if (sort === 'rating') {
     params.sort_by = 'rating';
     params.sort_order = 'desc';
   } else if (sort === 'date') {

@@ -116,6 +116,19 @@ function buildSearchCacheKey({ query, searchType, genre, sort, selectedGenres = 
   });
 }
 
+/**
+ * 최근 검색 기록 필터의 서버 정렬값을 검색 페이지 정렬값으로 변환한다.
+ */
+function normalizeHistorySort(sortBy) {
+  if (sortBy === 'rating') {
+    return 'rating';
+  }
+  if (sortBy === 'release_date') {
+    return 'date';
+  }
+  return 'relevance';
+}
+
 function readSearchCache() {
   try {
     const raw = window.sessionStorage.getItem(SEARCH_CACHE_STORAGE_KEY);
@@ -205,11 +218,7 @@ export default function SearchPage() {
     const queryText = searchQuery.trim();
     const normalizedDiscoveryGenres = queryText ? [] : discoveryGenres.filter(Boolean);
     const isGenreDiscoverySearch = !queryText && normalizedDiscoveryGenres.length > 0;
-    const effectiveSort = (
-      isGenreDiscoverySearch && searchSort === 'relevance'
-        ? 'rating'
-        : searchSort
-    );
+    const effectiveSort = searchSort;
 
     /* 텍스트 검색어도, 선택 장르도 없으면 검색을 실행하지 않음 */
     if (!queryText && !isGenreDiscoverySearch) {
@@ -684,13 +693,14 @@ export default function SearchPage() {
     const isGenreHistory = historyFilters.search_mode === 'genre_discovery' && historyGenres.length > 0;
 
     if (isGenreHistory) {
+      const restoredSort = normalizeHistorySort(historyFilters.sort_by);
       setQuery('');
       setSearchType('all');
       setGenre('전체');
-      setSort('rating');
+      setSort(restoredSort);
       setSelectedSearchGenres(historyGenres);
       setIsRecentModalOpen(false);
-      executeSearch('', 'all', '전체', 'rating', 1, false, historyGenres);
+      executeSearch('', 'all', '전체', restoredSort, 1, false, historyGenres);
       return;
     }
 
@@ -921,7 +931,7 @@ export default function SearchPage() {
           <S.SearchGenreSection>
             <S.SearchGenreTitle>장르로 찾기</S.SearchGenreTitle>
             <S.SearchGenreDescription>
-              텍스트 검색 없이 장르를 하나 이상 선택해 영화를 찾아볼 수 있습니다.
+              관심있는 장르를 여러 개 선택해 검색할 수 있습니다.
             </S.SearchGenreDescription>
 
             {isSearchGenreOptionsLoading && (
