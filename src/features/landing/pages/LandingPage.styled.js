@@ -2385,10 +2385,75 @@ export const DocButtonIcon = styled.span`
 `;
 
 /* ================================================================
-   다이어그램 이미지 — 실제 PNG/JPG 이미지를 표시하는 래퍼
+   다이어그램 카드 그리드 — 각 카드를 클릭하면 모달로 상세 보기
    ================================================================ */
 
-/** 다이어그램 이미지 — 반응형 + 라운드 + 보더 */
+/** 다이어그램 카드 그리드 래퍼 */
+export const DiagramCardGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px;
+  margin-top: 8px;
+
+  @media (max-width: 600px) {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+`;
+
+/** 개별 다이어그램 카드 — 클릭 시 모달 오픈 트리거 */
+export const DiagramCard = styled.button`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 22px 16px;
+  border-radius: 16px;
+  background: ${({ theme }) => theme.landing.bgCard};
+  border: 1px solid ${({ $color }) => $color ? $color + '25' : 'rgba(124,108,240,0.12)'};
+  color: ${({ theme }) => theme.landing.textPrimary};
+  cursor: pointer;
+  transition: all 0.25s ease;
+  font-family: 'Noto Sans KR', sans-serif;
+  text-align: center;
+
+  &:hover {
+    border-color: ${({ $color }) => $color ? $color + '55' : 'rgba(124,108,240,0.4)'};
+    background: ${({ $color }) => $color ? $color + '12' : 'rgba(124,108,240,0.08)'};
+    transform: translateY(-3px);
+    box-shadow: 0 8px 28px ${({ $color }) => $color ? $color + '18' : 'rgba(124,108,240,0.12)'};
+  }
+`;
+
+/** 카드 아이콘 원형 */
+export const DiagramCardIcon = styled.div`
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: ${({ $color }) => $color ? $color + '18' : 'rgba(124,108,240,0.12)'};
+  border: 1.5px solid ${({ $color }) => $color ? $color + '30' : 'rgba(124,108,240,0.2)'};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+`;
+
+/** 카드 제목 */
+export const DiagramCardTitle = styled.div`
+  font-weight: 700;
+  font-size: 0.85rem;
+  color: ${({ theme }) => theme.landing.textPrimary};
+`;
+
+/** 카드 부제 */
+export const DiagramCardSub = styled.div`
+  font-size: 0.72rem;
+  color: ${({ theme }) => theme.landing.textMuted};
+  line-height: 1.4;
+`;
+
+/** 다이어그램 이미지 — 모달 내부에서 사용 */
 export const DiagramImage = styled.img`
   width: 100%;
   border-radius: 12px;
@@ -2397,21 +2462,11 @@ export const DiagramImage = styled.img`
   display: block;
 `;
 
-/** 다이어그램 이미지 그리드 — 여러 이미지를 나란히 배치 */
-export const DiagramImageGrid = styled.div`
-  display: grid;
-  grid-template-columns: ${({ $cols }) => $cols ? `repeat(${$cols}, 1fr)` : '1fr'};
-  gap: 16px;
-  @media (max-width: 768px) {
-    grid-template-columns: 1fr;
-  }
-`;
-
-/** 다이어그램 이미지 캡션 */
+/** 다이어그램 이미지 캡션 — 모달 내부에서 사용 */
 export const DiagramCaption = styled.div`
   text-align: center;
   font-size: 0.78rem;
-  color: ${({ theme }) => theme.landing.textMuted};
-  margin-top: 8px;
+  color: #8888a0;
+  margin-top: 10px;
   font-weight: 500;
 `;

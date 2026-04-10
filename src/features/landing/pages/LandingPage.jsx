@@ -20,6 +20,7 @@ import {
 } from '../components/LandingDiagrams';
 import IAModal from '../components/IAModal';
 import PlanningModal from '../components/PlanningModal';
+import DiagramModal from '../components/DiagramModal';
 
 /* ── 피처 데이터 ── */
 const FEATURES = [
@@ -33,12 +34,12 @@ const FEATURES = [
 
 /* ── 관리/모니터링/참고 링크 데이터 ── */
 const QUICK_LINKS = {
-  /* 서비스 관리 */
+  /* 서비스 관리 — VM1 Nginx 리버스 프록시 경유 URL (VM3는 Private IP) */
   services: [
-    { icon: '🛠️', label: '관리자 페이지', url: 'http://210.109.15.187:5174', desc: 'Admin 대시보드 · 운영 도구' },
-    { icon: '📊', label: 'Grafana 대시보드', url: 'http://210.109.15.187:3000', desc: 'Prometheus 메트릭 모니터링' },
-    { icon: '📋', label: 'Kibana (ELK)', url: 'http://210.109.15.187:5601', desc: '로그 검색 · 시각화' },
-    { icon: '🔍', label: 'Prometheus', url: 'http://210.109.15.187:9090', desc: '메트릭 쿼리 · 알림 규칙' },
+    { icon: '🛠️', label: '관리자 페이지', url: 'http://210.109.15.187/admin/', desc: 'Admin 대시보드 · 운영 도구' },
+    { icon: '📊', label: 'Grafana 대시보드', url: 'http://210.109.15.187/monitoring/grafana/', desc: 'Prometheus 메트릭 모니터링' },
+    { icon: '📋', label: 'Kibana (ELK)', url: 'http://210.109.15.187/monitoring/kibana/', desc: '로그 검색 · 시각화' },
+    { icon: '🔍', label: 'Prometheus', url: 'http://210.109.15.187/monitoring/prometheus/', desc: '메트릭 쿼리 · 알림 규칙' },
   ],
   /* 팀원별 GitHub & 참고 링크 */
   members: [
@@ -127,6 +128,8 @@ export default function LandingPage() {
   /* 정보구조도 / 초기 기획서 모달 열림 상태 */
   const [isIAOpen, setIsIAOpen] = useState(false);
   const [isPlanningOpen, setIsPlanningOpen] = useState(false);
+  /* 다이어그램 모달 — 열려있는 다이어그램 ID (null이면 닫힘) */
+  const [openDiagram, setOpenDiagram] = useState(null);
   const particlesRef = useRef(null);
   const featureTimerRef = useRef(null);
 
@@ -741,20 +744,6 @@ export default function LandingPage() {
             </S.ProjectTitleBlock>
           </S.Reveal>
 
-          {/* ── 프로젝트 문서 버튼 (정보구조도 + 초기 기획서 모달) ── */}
-          <S.Reveal className="lp-reveal">
-            <S.DocButtonGrid>
-              <S.DocButton $color="#FF6B35" onClick={() => setIsIAOpen(true)}>
-                <S.DocButtonIcon $color="#FF6B35">📐</S.DocButtonIcon>
-                정보구조도 (IA)
-              </S.DocButton>
-              <S.DocButton $color="#7c6cf0" onClick={() => setIsPlanningOpen(true)}>
-                <S.DocButtonIcon $color="#7c6cf0">📋</S.DocButtonIcon>
-                초기 기획서
-              </S.DocButton>
-            </S.DocButtonGrid>
-          </S.Reveal>
-
           {/* ── 서비스 관리 & 모니터링 (프로젝트명 바로 아래) ── */}
           <S.Reveal className="lp-reveal">
             <S.QLSubTitle>서비스 관리 & 모니터링</S.QLSubTitle>
@@ -772,88 +761,43 @@ export default function LandingPage() {
             </S.QLServiceGrid>
           </S.Reveal>
 
-          {/* ── 인프라 아키텍처 (SVG 다이어그램 + 실제 이미지) ── */}
+          {/* ── 아키텍처 & 다이어그램 — 카드 그리드 (클릭 시 모달) ── */}
           <S.Reveal className="lp-reveal">
             <S.DiagramSection>
-              <S.DiagramTitle>Infrastructure Architecture</S.DiagramTitle>
-              <S.DiagramDesc>카카오 클라우드 4-VM 기반 서비스 토폴로지</S.DiagramDesc>
-              <InfraArchDiagram />
-            </S.DiagramSection>
-          </S.Reveal>
-
-          {/* ── 인프라 아키텍처 실제 다이어그램 (프로덕션 / 스테이징 / 전체) ── */}
-          <S.Reveal className="lp-reveal">
-            <S.DiagramSection>
-              <S.DiagramTitle>Infrastructure Diagrams</S.DiagramTitle>
-              <S.DiagramDesc>프로덕션 · 스테이징 · 전체 인프라 아키텍처 다이어그램</S.DiagramDesc>
-              <S.DiagramImageGrid $cols={1}>
-                <div>
-                  <S.DiagramImage src="/diagrams/infra_production.png" alt="프로덕션 인프라 아키텍처" loading="lazy" />
-                  <S.DiagramCaption>Production — 카카오 클라우드 VPC 4-VM 구성</S.DiagramCaption>
-                </div>
-              </S.DiagramImageGrid>
-              <S.DiagramImageGrid $cols={2} style={{ marginTop: 16 }}>
-                <div>
-                  <S.DiagramImage src="/diagrams/infra_staging.png" alt="스테이징 인프라 아키텍처" loading="lazy" />
-                  <S.DiagramCaption>Staging — MacBook Air Docker 환경</S.DiagramCaption>
-                </div>
-                <div>
-                  <S.DiagramImage src="/diagrams/infra_full.png" alt="전체 인프라 아키텍처" loading="lazy" />
-                  <S.DiagramCaption>Full Architecture — 스테이징 → 프로덕션 전체 흐름</S.DiagramCaption>
-                </div>
-              </S.DiagramImageGrid>
-            </S.DiagramSection>
-          </S.Reveal>
-
-          {/* ── ERD 개요 (SVG 다이어그램 + 실제 ERD 이미지) ── */}
-          <S.Reveal className="lp-reveal">
-            <S.DiagramSection>
-              <S.DiagramTitle>ERD Overview</S.DiagramTitle>
-              <S.DiagramDesc>85개 테이블 · 8개 도메인 그룹 관계도</S.DiagramDesc>
-              <ERDDiagram />
-            </S.DiagramSection>
-          </S.Reveal>
-          <S.Reveal className="lp-reveal">
-            <S.DiagramSection>
-              <S.DiagramTitle>ERD Diagram</S.DiagramTitle>
-              <S.DiagramDesc>MySQL 85개 테이블 전체 ERD</S.DiagramDesc>
-              <S.DiagramImage src="/diagrams/monglepick_ERD.png" alt="몽글픽 ERD" loading="lazy" />
-            </S.DiagramSection>
-          </S.Reveal>
-
-          {/* ── 코드 구조 ── */}
-          <S.Reveal className="lp-reveal">
-            <S.DiagramSection>
-              <S.DiagramTitle>Code Structure</S.DiagramTitle>
-              <S.DiagramDesc>5개 서비스 · 주요 디렉터리 구조</S.DiagramDesc>
-              <CodeStructDiagram />
-            </S.DiagramSection>
-          </S.Reveal>
-
-          {/* ── Agent 노드 구성 ── */}
-          <S.Reveal className="lp-reveal">
-            <S.DiagramSection>
-              <S.DiagramTitle>Chat Agent Graph</S.DiagramTitle>
-              <S.DiagramDesc>LangGraph 16노드 StateGraph · 4분기 처리 흐름</S.DiagramDesc>
-              <AgentFlowDiagram />
-            </S.DiagramSection>
-          </S.Reveal>
-
-          {/* ── RAG 파이프라인 ── */}
-          <S.Reveal className="lp-reveal">
-            <S.DiagramSection>
-              <S.DiagramTitle>RAG Pipeline</S.DiagramTitle>
-              <S.DiagramDesc>Qdrant + Elasticsearch + Neo4j → RRF 하이브리드 검색</S.DiagramDesc>
-              <RAGDiagram />
-            </S.DiagramSection>
-          </S.Reveal>
-
-          {/* ── 화면설계 (Figma → 실제 이미지) ── */}
-          <S.Reveal className="lp-reveal">
-            <S.DiagramSection>
-              <S.DiagramTitle>Screen Design</S.DiagramTitle>
-              <S.DiagramDesc>UI/UX 화면설계서</S.DiagramDesc>
-              <S.DiagramImage src="/diagrams/screen_design.png" alt="몽글픽 화면설계" loading="lazy" />
+              <S.DiagramTitle>Architecture & Diagrams</S.DiagramTitle>
+              <S.DiagramDesc>카드를 클릭하면 상세 다이어그램을 확인할 수 있어요</S.DiagramDesc>
+              <S.DiagramCardGrid>
+                {/* 기획 문서 */}
+                <S.DiagramCard $color="#FF6B35" onClick={() => setIsIAOpen(true)}>
+                  <S.DiagramCardIcon $color="#FF6B35">📐</S.DiagramCardIcon>
+                  <S.DiagramCardTitle>정보구조도 (IA)</S.DiagramCardTitle>
+                  <S.DiagramCardSub>전체 서비스 정보 구조 트리</S.DiagramCardSub>
+                </S.DiagramCard>
+                <S.DiagramCard $color="#7c6cf0" onClick={() => setIsPlanningOpen(true)}>
+                  <S.DiagramCardIcon $color="#7c6cf0">📋</S.DiagramCardIcon>
+                  <S.DiagramCardTitle>초기 기획서</S.DiagramCardTitle>
+                  <S.DiagramCardSub>기획 의도 · 핵심 기능 · 목표</S.DiagramCardSub>
+                </S.DiagramCard>
+                {/* 아키텍처 & 다이어그램 */}
+                {[
+                  { id: 'infra-svg',   icon: '🏗️', title: 'Infrastructure',     sub: '4-VM 서비스 토폴로지',        color: '#06d6a0' },
+                  { id: 'infra-prod',  icon: '☁️', title: 'Production Infra',   sub: '카카오 클라우드 VPC 4-VM',    color: '#118ab2' },
+                  { id: 'infra-stage', icon: '🐳', title: 'Staging Infra',      sub: 'MacBook Air Docker 환경',     color: '#45B7D1' },
+                  { id: 'infra-full',  icon: '🔄', title: 'Full Architecture',  sub: '스테이징 → 프로덕션 전체',    color: '#4ECDC4' },
+                  { id: 'erd-svg',     icon: '🗄️', title: 'ERD Overview',       sub: '8개 도메인 그룹 관계도',      color: '#7c6cf0' },
+                  { id: 'erd-img',     icon: '📊', title: 'ERD Diagram',        sub: 'MySQL 85개 테이블 전체',       color: '#a78bfa' },
+                  { id: 'code',        icon: '📂', title: 'Code Structure',     sub: '5개 서비스 디렉터리 구조',    color: '#ef476f' },
+                  { id: 'agent',       icon: '🤖', title: 'Chat Agent Graph',   sub: 'LangGraph 16노드 흐름',       color: '#ffd166' },
+                  { id: 'rag',         icon: '🔍', title: 'RAG Pipeline',       sub: 'Qdrant+ES+Neo4j → RRF',       color: '#f97316' },
+                  { id: 'screen',      icon: '🎨', title: 'Screen Design',      sub: 'UI/UX 화면설계서',            color: '#DDA0DD' },
+                ].map((d) => (
+                  <S.DiagramCard key={d.id} $color={d.color} onClick={() => setOpenDiagram(d.id)}>
+                    <S.DiagramCardIcon $color={d.color}>{d.icon}</S.DiagramCardIcon>
+                    <S.DiagramCardTitle>{d.title}</S.DiagramCardTitle>
+                    <S.DiagramCardSub>{d.sub}</S.DiagramCardSub>
+                  </S.DiagramCard>
+                ))}
+              </S.DiagramCardGrid>
             </S.DiagramSection>
           </S.Reveal>
 
@@ -930,6 +874,97 @@ export default function LandingPage() {
 
       {/* ── 초기 기획서 모달 ── */}
       <PlanningModal isOpen={isPlanningOpen} onClose={() => setIsPlanningOpen(false)} />
+
+      {/* ── 다이어그램 모달 10종 ── */}
+      <DiagramModal
+        isOpen={openDiagram === 'infra-svg'}
+        onClose={() => setOpenDiagram(null)}
+        title="Infrastructure Architecture"
+        desc="카카오 클라우드 4-VM 기반 서비스 토폴로지"
+      >
+        <InfraArchDiagram />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'infra-prod'}
+        onClose={() => setOpenDiagram(null)}
+        title="Production Infrastructure"
+        desc="카카오 클라우드 VPC 4-VM 프로덕션 구성"
+      >
+        <S.DiagramImage src="/diagrams/infra_production.png" alt="프로덕션 인프라" />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'infra-stage'}
+        onClose={() => setOpenDiagram(null)}
+        title="Staging Infrastructure"
+        desc="MacBook Air Docker 기반 스테이징 환경"
+      >
+        <S.DiagramImage src="/diagrams/infra_staging.png" alt="스테이징 인프라" />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'infra-full'}
+        onClose={() => setOpenDiagram(null)}
+        title="Full Architecture"
+        desc="스테이징 → 프로덕션 전체 인프라 흐름"
+      >
+        <S.DiagramImage src="/diagrams/infra_full.png" alt="전체 인프라" />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'erd-svg'}
+        onClose={() => setOpenDiagram(null)}
+        title="ERD Overview"
+        desc="85개 테이블 · 8개 도메인 그룹 관계도"
+      >
+        <ERDDiagram />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'erd-img'}
+        onClose={() => setOpenDiagram(null)}
+        title="ERD Diagram"
+        desc="MySQL 85개 테이블 전체 ERD"
+      >
+        <S.DiagramImage src="/diagrams/monglepick_ERD.png" alt="몽글픽 ERD" />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'code'}
+        onClose={() => setOpenDiagram(null)}
+        title="Code Structure"
+        desc="5개 서비스 · 주요 디렉터리 구조"
+      >
+        <CodeStructDiagram />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'agent'}
+        onClose={() => setOpenDiagram(null)}
+        title="Chat Agent Graph"
+        desc="LangGraph 16노드 StateGraph · 4분기 처리 흐름"
+      >
+        <AgentFlowDiagram />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'rag'}
+        onClose={() => setOpenDiagram(null)}
+        title="RAG Pipeline"
+        desc="Qdrant + Elasticsearch + Neo4j → RRF 하이브리드 검색"
+      >
+        <RAGDiagram />
+      </DiagramModal>
+
+      <DiagramModal
+        isOpen={openDiagram === 'screen'}
+        onClose={() => setOpenDiagram(null)}
+        title="Screen Design"
+        desc="UI/UX 화면설계서"
+      >
+        <S.DiagramImage src="/diagrams/screen_design.png" alt="화면설계" />
+      </DiagramModal>
     </S.LandingWrapper>
   );
 }
