@@ -6,6 +6,11 @@
  *
  * 구매된 이용권은 user_ai_quota.purchased_ai_tokens에 누적되며,
  * QuotaService의 AI 3-소스 모델 3단계(PURCHASED)에서 소비된다.
+ * PURCHASED 토큰은 등급 일일 무료 한도를 우회하여 사용 가능하다.
+ *
+ * 설계서 v3.2 — 4종 상품, 단가 10P/회 = 100원/회 통일:
+ *   AI_TOKEN_1(10P→1회), AI_TOKEN_5(50P→5회),
+ *   AI_TOKEN_20(200P→20회), AI_TOKEN_50(500P→50회)
  *
  * 모든 요청에 JWT 인증이 필요하다.
  */
@@ -21,7 +26,7 @@ import { POINT_SHOP_ENDPOINTS } from '../../../shared/constants/api';
  * @returns {Promise<Object>} 상점 응답
  *   - currentBalance: 현재 보유 포인트 잔액
  *   - currentAiTokens: 현재 보유 AI 이용권 잔여 횟수 (purchased_ai_tokens)
- *   - items: [{ itemId, name, cost, amount, description }, ...] 상품 3종
+ *   - items: [{ itemId, name, cost, amount, description }, ...] 상품 4종
  */
 export async function getShopItems() {
   requireAuth();
@@ -31,7 +36,7 @@ export async function getShopItems() {
 /**
  * AI 이용권 팩을 구매한다.
  *
- * @param {'AI_TOKEN_5'|'AI_TOKEN_20'} packType - 구매할 팩 유형
+ * @param {'AI_TOKEN_1'|'AI_TOKEN_5'|'AI_TOKEN_20'|'AI_TOKEN_50'} packType - 구매할 팩 유형
  * @returns {Promise<Object>} 구매 결과
  *   - deductedPoints: 차감된 포인트
  *   - addedTokens: 지급된 이용권 횟수
@@ -46,18 +51,4 @@ export async function purchaseAiTokens(packType) {
     null,
     { params: { packType } },
   );
-}
-
-/**
- * 일일 한도 우회 AI 이용권(AI_DAILY_EXTEND)을 구매한다.
- *
- * <p>오늘의 무료 AI 사용 횟수를 모두 소진한 사용자가
- * 당일 추가 사용을 원할 때 100P를 소비하여 5회를 구매한다.
- * 구매된 토큰은 일일 한도를 우회하여 즉시 사용 가능하다.</p>
- *
- * @returns {Promise<Object>} 구매 결과 (purchaseAiTokens와 동일한 구조)
- */
-export async function purchaseAiDailyExtend() {
-  requireAuth();
-  return api.post(POINT_SHOP_ENDPOINTS.PURCHASE_AI_EXTEND);
 }

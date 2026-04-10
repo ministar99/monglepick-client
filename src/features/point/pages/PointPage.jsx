@@ -30,7 +30,6 @@ import {
 import {
   getShopItems,
   purchaseAiTokens,
-  purchaseAiDailyExtend,
 } from '../api/pointShopApi';
 /* 라우트 경로 상수 — shared/constants에서 가져옴 */
 import { ROUTES } from '../../../shared/constants/routes';
@@ -306,13 +305,9 @@ export default function PointPage() {
   /**
    * AI 이용권 구매 버튼 클릭 핸들러.
    *
-   * <p>상품 itemId를 분기해 PointShopController의 두 엔드포인트 중
-   * 알맞은 것을 호출한다.</p>
-   *
-   * <ul>
-   *   <li>AI_TOKEN_5 / AI_TOKEN_20 → POST /point/shop/ai-tokens (query: packType)</li>
-   *   <li>AI_DAILY_EXTEND           → POST /point/shop/ai-extend</li>
-   * </ul>
+   * <p>설계서 v3.2 기준 4종 상품(AI_TOKEN_1/5/20/50)을
+   * POST /point/shop/ai-tokens (query: packType) 단일 엔드포인트로 구매한다.
+   * 구매된 이용권은 등급 일일 무료 한도를 우회하여 사용 가능하다.</p>
    *
    * 구매 성공 후 잔액과 상점 상태를 재로드하여 UI를 갱신한다.
    *
@@ -333,12 +328,7 @@ export default function PointPage() {
     setError(null);
 
     try {
-      let result;
-      if (item.itemId === 'AI_DAILY_EXTEND') {
-        result = await purchaseAiDailyExtend();
-      } else {
-        result = await purchaseAiTokens(item.itemId);
-      }
+      const result = await purchaseAiTokens(item.itemId);
 
       await showAlert({
         title: '구매 완료',

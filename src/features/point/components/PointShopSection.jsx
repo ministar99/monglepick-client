@@ -2,9 +2,11 @@
  * 포인트 상점(PointShop) 섹션 컴포넌트 — AI 이용권 구매 전용.
  *
  * <p>Backend PointShopController(/api/v1/point/shop/*)와 연동하여
- * AI 추천 이용권 3종(AI_TOKEN_5, AI_TOKEN_20, AI_DAILY_EXTEND)을 구매한다.
+ * AI 추천 이용권 4종(AI_TOKEN_1, AI_TOKEN_5, AI_TOKEN_20, AI_TOKEN_50)을 구매한다.
+ * 설계서 v3.2 — 단가 10P/회 = 100원/회 통일.
  * 구매된 이용권은 user_ai_quota.purchased_ai_tokens에 누적되어
- * 등급 일일 한도와 구독 보너스가 모두 소진된 이후 자동 소비된다.</p>
+ * 등급 일일 한도와 구독 보너스가 모두 소진된 이후 자동 소비된다.
+ * PURCHASED 토큰은 등급 일일 무료 한도를 우회하여 사용 가능하다.</p>
  *
  * <p>일반 포인트 아이템 교환(ItemExchange)과는 별개의 섹션으로 운영된다.
  * v3.2 설계서 §16 "포인트 소비처"의 핵심 소비처이다.</p>
@@ -88,9 +90,7 @@ export default function PointShopSection({
             return (
               <S.Card key={item.itemId}>
                 {/* 상품 카테고리 태그 (AI 이용권 or 일일한도 우회) */}
-                <S.CategoryTag>
-                  {item.itemId === 'AI_DAILY_EXTEND' ? '일일 한도 우회' : 'AI 이용권'}
-                </S.CategoryTag>
+                <S.CategoryTag>AI 이용권</S.CategoryTag>
 
                 {/* 상품 이름 + 설명 */}
                 <S.ItemName>{item.name}</S.ItemName>

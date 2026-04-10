@@ -212,20 +212,21 @@ export const POINT_ENDPOINTS = {
  * 구매된 이용권은 {@code user_ai_quota.purchased_ai_tokens}에 누적되며,
  * QuotaService의 AI 3-소스 모델 3단계(PURCHASED)에서 소비된다.</p>
  *
- * <h4>상품 구성 (Backend PointShopService 하드코딩)</h4>
+ * <h4>상품 구성 (Backend PointShopService 하드코딩, 설계서 v3.2 — 단가 10P/회 통일)</h4>
  * <ul>
- *   <li>AI_TOKEN_5     — 200P → 5회</li>
- *   <li>AI_TOKEN_20    — 700P → 20회 (번들 할인)</li>
- *   <li>AI_DAILY_EXTEND — 100P → 5회 (일일 한도 우회)</li>
+ *   <li>AI_TOKEN_1  — 10P → 1회</li>
+ *   <li>AI_TOKEN_5  — 50P → 5회</li>
+ *   <li>AI_TOKEN_20 — 200P → 20회</li>
+ *   <li>AI_TOKEN_50 — 500P → 50회</li>
  * </ul>
+ *
+ * <p>v3.2 변경: AI_DAILY_EXTEND 폐지. PURCHASED 토큰 자체가 일일 무료 한도를 우회한다.</p>
  */
 export const POINT_SHOP_ENDPOINTS = {
   /** 상점 아이템 목록 + 현재 잔액/토큰 잔여 - GET */
   ITEMS: `${API_VERSION}/point/shop/items`,
-  /** AI 이용권 팩 구매 - POST (query: packType) */
+  /** AI 이용권 팩 구매 - POST (query: packType=AI_TOKEN_1/5/20/50) */
   PURCHASE_AI_TOKENS: `${API_VERSION}/point/shop/ai-tokens`,
-  /** 일일 한도 우회 AI 이용권 구매 - POST */
-  PURCHASE_AI_EXTEND: `${API_VERSION}/point/shop/ai-extend`,
 };
 
 /**
