@@ -17,10 +17,11 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getPostDetail } from '../api/communityApi';
+import { getPostDetail, deletePost } from '../api/communityApi'; // ✅ deletePost 추가
 import { formatRelativeTime } from '../../../shared/utils/formatters';
 import Loading from '../../../shared/components/Loading/Loading';
 import CommentSection from '../components/CommentSection';
+import useAuthStore from '../../../shared/stores/useAuthStore'; // ✅ 추가
 import * as S from './PostDetailPage.styled';
 
 /** 카테고리 코드 → 한국어 라벨 */
@@ -35,12 +36,14 @@ export default function PostDetailPage() {
   /* URL 파라미터에서 게시글 ID 추출 */
   const { id: postId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore(); // ✅ 현재 로그인 유저
 
   /* 게시글 상세 */
   const [post, setPost] = useState(null);
   /* 로딩 / 에러 상태 */
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false); // ✅ 추가
 
   useEffect(() => {
     let cancelled = false;
@@ -67,6 +70,24 @@ export default function PostDetailPage() {
       cancelled = true;
     };
   }, [postId]);
+
+  /* ✅ 삭제 핸들러 */
+  const handleDelete = async () => {
+    const confirmed = window.confirm('게시글을 삭제하시겠습니까?');
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await deletePost(postId);
+      navigate('/community');
+    } catch {
+  alert('삭제에 실패했습니다. 다시 시도해주세요.');
+  setIsDeleting(false);
+}
+  };
+
+  /* ✅ 본인 글 여부 — authorId와 로그인 유저 ID 비교 */
+  const isOwner = user && post && user.userId === post.authorId;
 
   /* 로딩 중 */
   if (isLoading) {
@@ -103,7 +124,7 @@ export default function PostDetailPage() {
 
         {/* 게시글 카드 */}
         <S.Card>
-          {/* 카테고리 + 작성 시간 */}
+          {/* 카테고리 + 작성 시간 + 삭제 버튼 */}
           <S.Header>
             {post.category && (
               <S.CategoryBadge>
@@ -111,6 +132,13 @@ export default function PostDetailPage() {
               </S.CategoryBadge>
             )}
             <S.Time>{formatRelativeTime(post.createdAt)}</S.Time>
+
+            {/* ✅ 본인 글일 때만 삭제 버튼 표시 */}
+            {isOwner && (
+              <S.DeleteButton onClick={handleDelete} disabled={isDeleting}>
+                {isDeleting ? '삭제 중...' : '삭제'}
+              </S.DeleteButton>
+            )}
           </S.Header>
 
           {/* 제목 */}

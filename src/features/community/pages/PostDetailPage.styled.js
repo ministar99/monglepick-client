@@ -128,3 +128,24 @@ export const Status = styled.div`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: ${({ theme }) => theme.typography.textSm};
 `;
+
+export const DeleteButton = styled.button`
+  margin-left: auto;
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid #e53e3e;
+  color: #e53e3e;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+
+  &:hover:not(:disabled) {
+    background: #e53e3e;
+    color: white;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
