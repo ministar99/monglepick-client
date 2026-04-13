@@ -20,7 +20,7 @@
  *   잘못된 값이거나 누락 시 기본값은 'posts'.
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 /* 커스텀 모달 훅 — window.alert 대체 */
 import { useModal } from '../../../shared/components/Modal';
@@ -145,25 +145,24 @@ export default function CommunityPage() {
    * activeTab 이 'posts' 일 때 또는 카테고리 필터가 변경될 때 재실행된다.
    * 카테고리 변경 시 즉시 재조회로 사용자 의도에 빠르게 반응한다.
    */
-  useEffect(() => {
-    async function loadPosts() {
-      setIsLoading(true);
-      try {
-        const result = await getPosts({ page: 1, size: 20, category });
-        setPosts(result?.posts || []);
-      } catch (err) {
-        /* 에러도 콘솔에 남겨 진단 가능하도록 — 빈 화면만 보여서는 원인 추적 어려움 */
-        console.error('[CommunityPage] 게시글 로드 실패:', err);
-        setPosts([]);
-      } finally {
-        setIsLoading(false);
-      }
+  const loadPosts = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await getPosts({ page: 1, size: 20, category });
+      setPosts(result?.posts || []);
+    } catch (err) {
+      console.error('[CommunityPage] 게시글 로드 실패:', err);
+      setPosts([]);
+    } finally {
+      setIsLoading(false);
     }
+  }, [category]);
 
+  useEffect(() => {
     if (activeTab === 'posts') {
       loadPosts();
     }
-  }, [activeTab, category]);
+  }, [activeTab, loadPosts]);
 
   /**
    * 게시글 작성 제출 핸들러.
@@ -174,9 +173,8 @@ export default function CommunityPage() {
     setIsSubmitting(true);
     try {
       const newPost = await createPost(postData);
-      // 새 게시글을 목록 맨 앞에 추가
-      setPosts((prev) => [newPost, ...prev]);
       setShowForm(false);
+      await loadPosts();
       // 리워드 지급 시 토스트 알림
       if (newPost?.rewardPoints > 0) {
         showReward(newPost.rewardPoints, '게시글 작성');
