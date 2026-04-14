@@ -1,66 +1,188 @@
 /**
- * 업적 상세 페이지 (placeholder).
+ * 업적 상세 페이지.
  *
- * PR #79 (ministar99) 가 App.jsx 에 라우트 + import 만 추가했으나 실제 파일이
- * 누락되어 Vite 빌드 실패(Could not resolve ...AchievementDetailPage)를 유발했다.
- * 빌드 복구를 위해 최소 placeholder 페이지를 임시로 제공한다.
- * 본격적인 상세 UI/UX 는 담당자가 후속 PR 로 구현한다.
+ * 업적 목록에서 카드 클릭 시 진입하며,
+ * 업적 설명·달성 조건·진행률·보상 포인트·달성 일시를 상세히 표시한다.
+ *
+ * 데이터 소스: router state(location.state.achievement) 우선,
+ * 없으면 getAchievements() 전체 목록에서 ID로 탐색.
  *
  * @module features/achievement/pages/AchievementDetailPage
  */
 
-import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getAchievementDetail } from '../api/achievementApi';
+import { useState, useEffect } from 'react';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { getAchievements } from '../api/achievementApi';
+import { ROUTES } from '../../../shared/constants/routes';
+import * as S from './AchievementDetailPage.styled';
+
+/** 카테고리 한글 라벨 */
+const CATEGORY_LABELS = {
+  VIEWING: '시청',
+  SOCIAL: '소셜',
+  COLLECTION: '컬렉션',
+  CHALLENGE: '도전',
+};
+
+/** 카테고리 기본 아이콘 */
+const CATEGORY_ICONS = {
+  VIEWING: '&#x1F3AC;',
+  SOCIAL: '&#x1F91D;',
+  COLLECTION: '&#x1F4DA;',
+  CHALLENGE: '&#x1F3C6;',
+};
+
+/** 달성일 포맷 (ISO → 한국어 날짜) */
+function formatDate(isoStr) {
+  if (!isoStr) return null;
+  try {
+    return new Date(isoStr).toLocaleDateString('ko-KR', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return isoStr;
+  }
+}
 
 export default function AchievementDetailPage() {
-  const { id } = useParams();
   const navigate = useNavigate();
-  const [detail, setDetail] = useState(null);
-  const [error, setError] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { id } = useParams();
+  const { state } = useLocation();
 
+  const [achievement, setAchievement] = useState(state?.achievement ?? null);
+  const [isLoading, setIsLoading] = useState(!state?.achievement);
+
+  /* router state에 데이터가 없으면 목록 API에서 탐색 */
   useEffect(() => {
+    if (achievement) return;
     let cancelled = false;
-    async function load() {
+
+    (async () => {
       setIsLoading(true);
       try {
-        const data = await getAchievementDetail(id);
-        if (!cancelled) setDetail(data);
-      } catch (e) {
-        if (!cancelled) setError(e.message || '업적 상세를 불러오지 못했습니다.');
+        const data = await getAchievements();
+        const list = Array.isArray(data) ? data : data?.content || [];
+        const found = list.find(
+          (a) => String(a.achievementTypeId) === String(id) ||
+                 String(a.id) === String(id)
+        );
+        if (!cancelled) {
+          setAchievement(found ?? null);
+        }
+      } catch {
+        if (!cancelled) setAchievement(null);
       } finally {
         if (!cancelled) setIsLoading(false);
       }
-    }
-    if (id) load();
+    })();
+
     return () => { cancelled = true; };
-  }, [id]);
+  }, [id, achievement]);
+
+  /* ── 로딩 ── */
+  if (isLoading) {
+    return (
+      <S.Container>
+        <S.BackLink onClick={() => navigate(ROUTES.ACHIEVEMENT)}>
+          ← 업적 목록
+        </S.BackLink>
+        <S.Skeleton $h={120} />
+        <S.Skeleton $h={80} />
+        <S.Skeleton $h={100} />
+      </S.Container>
+    );
+  }
+
+  /* ── 데이터 없음 ── */
+  if (!achievement) {
+    return (
+      <S.Container>
+        <S.BackLink onClick={() => navigate(ROUTES.ACHIEVEMENT)}>
+          ← 업적 목록
+        </S.BackLink>
+        <S.BodyText style={{ color: 'var(--text-muted)', textAlign: 'center', marginTop: 40 }}>
+          업적 정보를 불러올 수 없습니다.
+        </S.BodyText>
+      </S.Container>
+    );
+  }
+
+  const progress    = achievement.progress    ?? 0;
+  const maxProgress = achievement.maxProgress ?? achievement.requiredCount ?? 1;
+  const percent     = maxProgress > 0 ? Math.round((progress / maxProgress) * 100) : 0;
+  const categoryLabel = CATEGORY_LABELS[achievement.category] ?? '기타';
+  const icon = achievement.iconUrl || CATEGORY_ICONS[achievement.category] || '&#x1F3C5;';
 
   return (
-    <section style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }}>
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        style={{ marginBottom: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
-      >
-        ← 이전
-      </button>
+    <S.Container>
+      <S.BackLink onClick={() => navigate(ROUTES.ACHIEVEMENT)}>
+        ← 업적 목록
+      </S.BackLink>
 
-      <h1 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>업적 상세</h1>
+      {/* 헤더 카드 */}
+      <S.Header $achieved={achievement.achieved}>
+        <S.IconBox
+          $achieved={achievement.achieved}
+          dangerouslySetInnerHTML={{ __html: icon }}
+        />
+        <S.HeaderContent>
+          <S.Title>{achievement.achievementName || achievement.name}</S.Title>
+          <S.BadgeRow>
+            <S.CategoryBadge>{categoryLabel}</S.CategoryBadge>
+            {achievement.achieved
+              ? <S.AchievedBadge>✓ 달성 완료</S.AchievedBadge>
+              : <S.LockedBadge>🔒 미달성</S.LockedBadge>
+            }
+          </S.BadgeRow>
+        </S.HeaderContent>
+      </S.Header>
 
-      {isLoading && <p>로딩 중…</p>}
-      {error && <p style={{ color: '#d9534f' }}>{error}</p>}
-      {detail && (
-        <div>
-          <h2 style={{ fontSize: '1.2rem' }}>{detail.name ?? detail.title ?? `업적 #${id}`}</h2>
-          {detail.description && <p>{detail.description}</p>}
-          {/* 본격 UI/UX 는 후속 PR 에서 담당자가 구현 */}
-          <p style={{ marginTop: '1.5rem', color: '#888', fontSize: '0.9rem' }}>
-            (이 화면은 빌드 복구를 위한 임시 placeholder 입니다. 본격 상세 UI 는 후속 작업 예정.)
-          </p>
-        </div>
+      {/* 설명 */}
+      {(achievement.description) && (
+        <S.Card>
+          <S.SectionLabel>업적 설명</S.SectionLabel>
+          <S.BodyText>{achievement.description}</S.BodyText>
+        </S.Card>
       )}
-    </section>
+
+      {/* 달성 조건 */}
+      <S.Card>
+        <S.SectionLabel>달성 조건</S.SectionLabel>
+        <S.BodyText>
+          {maxProgress > 1
+            ? `총 ${maxProgress}회 달성하면 획득할 수 있습니다.`
+            : '조건을 1회 달성하면 획득할 수 있습니다.'}
+        </S.BodyText>
+        <S.ProgressBarOuter>
+          <S.ProgressBarInner $percent={percent} $complete={achievement.achieved} />
+        </S.ProgressBarOuter>
+        <S.ProgressRow>
+          <S.ProgressCount $complete={achievement.achieved}>
+            {progress} / {maxProgress}
+          </S.ProgressCount>
+          <S.ProgressPercent>{percent}%</S.ProgressPercent>
+        </S.ProgressRow>
+      </S.Card>
+
+      {/* 보상 + 달성일 */}
+      <S.InfoGrid>
+        <S.InfoItem>
+          <S.InfoValue>
+            {achievement.rewardPoints > 0 ? `+${achievement.rewardPoints}P` : '—'}
+          </S.InfoValue>
+          <S.InfoLabel>달성 보상</S.InfoLabel>
+        </S.InfoItem>
+        <S.InfoItem>
+          <S.InfoValue style={{ fontSize: 'inherit', fontWeight: 'inherit', color: achievement.achieved ? 'inherit' : undefined }}>
+            {achievement.achieved && achievement.achievedAt
+              ? formatDate(achievement.achievedAt)
+              : '—'}
+          </S.InfoValue>
+          <S.InfoLabel>달성 일시</S.InfoLabel>
+        </S.InfoItem>
+      </S.InfoGrid>
+    </S.Container>
   );
 }

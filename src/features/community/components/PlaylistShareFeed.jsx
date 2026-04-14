@@ -272,6 +272,7 @@ const Btn = styled.button`
 export default function PlaylistShareFeed() {
   const { showAlert } = useModal();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+  const currentUser = useAuthStore((s) => s.user);
   const navigate = useNavigate();
 
   const [posts, setPosts] = useState([]);
@@ -423,6 +424,10 @@ export default function PlaylistShareFeed() {
             const isImporting = importing.has(post.id);
 
             const playlistId = info.playlistId ?? post.playlistId;
+            const isMyPost =
+              currentUser != null &&
+              String(post.userId ?? post.authorId ?? '') ===
+                String(currentUser.id ?? currentUser.userId ?? '');
 
             return (
               <Card
@@ -451,13 +456,15 @@ export default function PlaylistShareFeed() {
                   >
                     {like.liked ? '❤️ 좋아요' : '🤍 좋아요'}
                   </LikeBtn>
-                  <ActionBtn
-                    $variant="import"
-                    disabled={isImporting}
-                    onClick={(e) => { e.stopPropagation(); handleImport(post); }}
-                  >
-                    {isImporting ? '가져오는 중...' : '📥 가져오기'}
-                  </ActionBtn>
+                  {!isMyPost && (
+                    <ActionBtn
+                      $variant="import"
+                      disabled={isImporting}
+                      onClick={(e) => { e.stopPropagation(); handleImport(post); }}
+                    >
+                      {isImporting ? '가져오는 중...' : '📥 가져오기'}
+                    </ActionBtn>
+                  )}
                 </Actions>
               </Card>
             );

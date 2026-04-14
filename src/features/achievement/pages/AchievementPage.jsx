@@ -61,6 +61,7 @@ export default function AchievementPage() {
   return (
     <S.Container>
       <S.PageTitle>업적</S.PageTitle>
+      <S.Subtitle>활동하며 달성한 업적을 확인해보세요!</S.Subtitle>
 
       {/* 요약 통계 */}
       <S.StatsBar>
@@ -95,7 +96,7 @@ export default function AchievementPage() {
       {isLoading && (
         <S.AchievementGrid>
           {[1, 2, 3, 4].map((i) => (
-            <S.SkeletonCard key={i} $h={100} />
+            <S.SkeletonCard key={i} />
           ))}
         </S.AchievementGrid>
       )}
@@ -116,28 +117,31 @@ export default function AchievementPage() {
                   buildPath(ROUTES.ACHIEVEMENT_DETAIL, { id: ach.achievementTypeId ?? ach.id }),
                   { state: { achievement: ach } }
                 )}
-                style={{ cursor: 'pointer' }}
               >
-                <S.AchievementIcon
-                  dangerouslySetInnerHTML={{
-                    __html: ach.iconUrl || CATEGORY_ICONS[ach.category] || '&#x1F3C5;',
-                  }}
-                />
-                <S.AchievementInfo>
-                  <S.AchievementName>
-                    {ach.name}
-                    {ach.achieved && (
-                      <S.AchievedBadge> ✓ 달성</S.AchievedBadge>
-                    )}
-                  </S.AchievementName>
+                <S.AchievementHeaderRow>
+                  <S.AchievementIcon
+                    dangerouslySetInnerHTML={{
+                      __html: ach.iconUrl || CATEGORY_ICONS[ach.category] || '&#x1F3C5;',
+                    }}
+                  />
+                  <S.AchievementNameRow>
+                    <S.AchievementName>{ach.name}</S.AchievementName>
+                    {ach.achieved && <S.AchievedBadge>✓ 달성</S.AchievedBadge>}
+                  </S.AchievementNameRow>
+                </S.AchievementHeaderRow>
+
+                {ach.description && (
                   <S.AchievementDesc>{ach.description}</S.AchievementDesc>
-                  <S.ProgressBarOuter>
-                    <S.ProgressBarInner $percent={percent} $complete={ach.achieved} />
-                  </S.ProgressBarOuter>
-                  <S.ProgressText>
-                    {progress} / {maxProgress}
-                  </S.ProgressText>
-                </S.AchievementInfo>
+                )}
+
+                <S.AchievementMeta>
+                  <S.ProgressText>{progress} / {maxProgress}</S.ProgressText>
+                  <S.ProgressText>{percent}%</S.ProgressText>
+                </S.AchievementMeta>
+
+                <S.ProgressBarOuter>
+                  <S.ProgressBarInner $percent={percent} $complete={ach.achieved} />
+                </S.ProgressBarOuter>
               </S.AchievementCard>
             );
           })}

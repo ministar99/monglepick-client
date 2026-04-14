@@ -493,6 +493,127 @@ export const SearchHint = styled.p`
   margin: 20px 0;
 `;
 
+/* ── 케밥 메뉴 ── */
+
+/** 카드 헤더 행 (제목 + 케밥 버튼) */
+export const CardHeaderRow = styled.div`
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+`;
+
+/** ⋮ 버튼 래퍼 (relative 기준) */
+export const KebabMenuWrap = styled.div`
+  position: relative;
+  flex-shrink: 0;
+`;
+
+/** ⋮ 케밥 버튼 */
+export const KebabBtn = styled.button`
+  width: 28px;
+  height: 28px;
+  border-radius: ${({ theme }) => theme.radius.sm};
+  border: none;
+  background: transparent;
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.bgElevated};
+    color: ${({ theme }) => theme.colors.textPrimary};
+  }
+`;
+
+/** 드롭다운 메뉴 */
+export const DropdownMenu = styled.div`
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  min-width: 120px;
+  background: ${({ theme }) => theme.colors.bgCard || theme.colors.bgSecondary};
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.md};
+  box-shadow: ${({ theme }) => theme.shadows.md};
+  z-index: 200;
+  overflow: hidden;
+`;
+
+/** 드롭다운 항목 */
+export const DropdownItem = styled.button`
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: transparent;
+  color: ${({ $danger, theme }) => ($danger ? theme.colors.error : theme.colors.textPrimary)};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  text-align: left;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    background: ${({ $danger, theme }) =>
+      $danger ? `${theme.colors.error}12` : theme.colors.bgElevated};
+  }
+`;
+
+/** 드롭다운 구분선 */
+export const DropdownDivider = styled.div`
+  height: 1px;
+  background: ${({ theme }) => theme.colors.borderDefault};
+  margin: 2px 0;
+`;
+
+/* ── 공유 모달 ── */
+
+/** 공유 링크 박스 */
+export const ShareLinkBox = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: ${({ theme }) => theme.radius.md};
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  background: ${({ theme }) => theme.colors.bgSecondary};
+`;
+
+/** 링크 텍스트 */
+export const ShareLinkText = styled.span`
+  flex: 1;
+  font-size: ${({ theme }) => theme.typography.textXs};
+  color: ${({ theme }) => theme.colors.textMuted};
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+/** 복사 버튼 */
+export const CopyBtn = styled.button`
+  padding: 4px 12px;
+  border-radius: ${({ theme }) => theme.radius.sm};
+  border: 1px solid ${({ $copied, theme }) => ($copied ? theme.colors.success : theme.colors.borderDefault)};
+  background: ${({ $copied, theme }) => ($copied ? `${theme.colors.success}15` : 'transparent')};
+  color: ${({ $copied, theme }) => ($copied ? theme.colors.success : theme.colors.textSecondary)};
+  font-size: ${({ theme }) => theme.typography.textXs};
+  font-weight: ${({ theme }) => theme.typography.fontSemibold};
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover:not(:disabled) {
+    background: ${({ theme }) => theme.colors.bgElevated};
+  }
+`;
+
 /** 스켈레톤 카드 */
 export const SkeletonCard = styled.div`
   padding: 20px;
