@@ -1,46 +1,37 @@
-/**
- * 커뮤니티 게시글 상세 페이지 컴포넌트.
- *
- * <p>URL {@code /community/:postId}로 접근되며, PostList에서 클릭한 게시글을 상세 표시하고
- * 하단에 {@link CommentSection}을 포함해 댓글 작성/조회/삭제/좋아요 토글까지 수행한다.</p>
- *
- * <h3>데이터 로드</h3>
- * <ol>
- *   <li>마운트 시 {@code getPostDetail(postId)}로 게시글 상세 fetch</li>
- *   <li>성공 → Card 렌더링</li>
- *   <li>실패 → 에러 메시지 + 목록으로 돌아가기 버튼</li>
- * </ol>
- *
- * <h3>인증</h3>
- * <p>비로그인도 조회 가능하다. 댓글 작성/삭제는 CommentSection 내부에서 인증 분기한다.</p>
- */
-
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getPostDetail } from '../api/communityApi';
+import { getPostDetail, deletePost, togglePostLike } from '../api/communityApi'; // ✅ togglePostLike 추가
 import { formatRelativeTime } from '../../../shared/utils/formatters';
 import Loading from '../../../shared/components/Loading/Loading';
 import CommentSection from '../components/CommentSection';
+import useAuthStore from '../../../shared/stores/useAuthStore';
 import * as S from './PostDetailPage.styled';
 
-/** 카테고리 코드 → 한국어 라벨 */
 const CATEGORY_LABEL = {
   general: '자유',
   free: '자유',
+  FREE: '자유',
   review: '리뷰',
   question: '질문',
+  DISCUSSION: '토론',
+  RECOMMENDATION: '추천',
+  NEWS: '뉴스',
 };
 
 export default function PostDetailPage() {
-  /* URL 파라미터에서 게시글 ID 추출 */
   const { id: postId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuthStore();
 
-  /* 게시글 상세 */
   const [post, setPost] = useState(null);
-  /* 로딩 / 에러 상태 */
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // ✅ 좋아요 상태
+  const [liked, setLiked] = useState(false);
+  const [likeCount, setLikeCount] = useState(0);
+  const [isLiking, setIsLiking] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -50,7 +41,10 @@ export default function PostDetailPage() {
       setError(null);
       try {
         const data = await getPostDetail(postId);
-        if (!cancelled) setPost(data);
+        if (!cancelled) {
+          setPost(data);
+          setLikeCount(data.likeCount ?? 0); // ✅ 초기 좋아요 수 세팅
+        }
       } catch (err) {
         if (!cancelled) {
           setError(err.message || '게시글을 불러오지 못했습니다.');
@@ -61,14 +55,53 @@ export default function PostDetailPage() {
     }
 
     if (postId) loadPost();
-
-    /* cleanup — 언마운트 시 비동기 응답이 이후 state 갱신에 영향 주지 않도록 차단 */
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, [postId]);
 
-  /* 로딩 중 */
+  const handleDelete = async () => {
+    const confirmed = window.confirm('게시글을 삭제하시겠습니까?');
+    if (!confirmed) return;
+
+    setIsDeleting(true);
+    try {
+      await deletePost(postId);
+      navigate('/community');
+    } catch {
+      alert('삭제에 실패했습니다. 다시 시도해주세요.');
+      setIsDeleting(false);
+    }
+  };
+
+  // ✅ 좋아요 토글 핸들러
+  const handleLike = async () => {
+    if (!user) {
+      alert('로그인이 필요합니다.');
+      return;
+    }
+    if (isLiking) return;
+
+    setIsLiking(true);
+    // 낙관적 업데이트 — API 응답 전에 UI 먼저 반영
+    setLiked((prev) => !prev);
+    setLikeCount((prev) => liked ? prev - 1 : prev + 1);
+
+    try {
+      const result = await togglePostLike(postId);
+      // 서버 응답으로 최종 동기화
+      setLiked(result.liked);
+      setLikeCount(result.likeCount);
+    } catch {
+      // 실패 시 롤백
+      setLiked((prev) => !prev);
+      setLikeCount((prev) => liked ? prev + 1 : prev - 1);
+      alert('좋아요 처리에 실패했습니다.');
+    } finally {
+      setIsLiking(false);
+    }
+  };
+  
+  const isOwner = user && post && user.id === post.authorId;
+
   if (isLoading) {
     return (
       <S.PageWrapper>
@@ -78,15 +111,13 @@ export default function PostDetailPage() {
       </S.PageWrapper>
     );
   }
+  
 
-  /* 에러 또는 미존재 */
   if (error || !post) {
     return (
       <S.PageWrapper>
         <S.PageInner>
-          <S.BackButton onClick={() => navigate('/community')}>
-            ← 목록으로
-          </S.BackButton>
+          <S.BackButton onClick={() => navigate('/community')}>← 목록으로</S.BackButton>
           <S.Status>{error || '게시글을 찾을 수 없습니다.'}</S.Status>
         </S.PageInner>
       </S.PageWrapper>
@@ -96,14 +127,9 @@ export default function PostDetailPage() {
   return (
     <S.PageWrapper>
       <S.PageInner>
-        {/* 상단 뒤로가기 */}
-        <S.BackButton onClick={() => navigate('/community')}>
-          ← 목록으로
-        </S.BackButton>
+        <S.BackButton onClick={() => navigate('/community')}>← 목록으로</S.BackButton>
 
-        {/* 게시글 카드 */}
         <S.Card>
-          {/* 카테고리 + 작성 시간 */}
           <S.Header>
             {post.category && (
               <S.CategoryBadge>
@@ -111,22 +137,39 @@ export default function PostDetailPage() {
               </S.CategoryBadge>
             )}
             <S.Time>{formatRelativeTime(post.createdAt)}</S.Time>
+            {isOwner && (
+              <S.DeleteButton onClick={handleDelete} disabled={isDeleting}>
+                {isDeleting ? '삭제 중...' : '삭제'}
+              </S.DeleteButton>
+            )}
           </S.Header>
 
-          {/* 제목 */}
           <S.Title>{post.title}</S.Title>
 
-          {/* 작성자 */}
+          
+
           <S.AuthorBar>
             <span>작성자</span>
             <strong>{post.author?.nickname || '익명'}</strong>
           </S.AuthorBar>
 
-          {/* 본문 */}
           <S.Body>{post.content}</S.Body>
-        </S.Card>
 
-        {/* 댓글 섹션 — postId를 넘겨 내부에서 독립적으로 fetch */}
+          {/* ✅ 좋아요 버튼 */}
+          <S.LikeBar>
+            <S.LikeButton onClick={handleLike} $liked={liked} disabled={isLiking}>
+              {liked ? '❤️' : '🤍'} {likeCount}
+            </S.LikeButton>
+          </S.LikeBar>
+        </S.Card>
+        
+        {/* 작성자 */}
+          <S.AuthorBar>
+           <span>작성자</span>
+              <strong>{post.author?.nickname || '익명'}</strong>
+           <S.ViewCount>👁 {post.viewCount ?? 0}</S.ViewCount>
+          </S.AuthorBar>
+
         <CommentSection postId={postId} />
       </S.PageInner>
     </S.PageWrapper>

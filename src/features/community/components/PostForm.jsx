@@ -19,9 +19,10 @@ import * as S from './PostForm.styled';
 
 /** 카테고리 선택 옵션 목록 */
 const CATEGORY_OPTIONS = [
-  { value: 'general', label: '자유' },
-  { value: 'review', label: '리뷰' },
-  { value: 'question', label: '질문' },
+  { value: 'FREE', label: '자유' },      // ✅ '전체' → '자유'
+  { value: 'DISCUSSION', label: '토론' },
+  { value: 'RECOMMENDATION', label: '추천' },
+  { value: 'NEWS', label: '뉴스' },
 ];
 
 export default function PostForm({ onSubmit, initialData, isSubmitting = false, onCancel }) {
@@ -33,7 +34,7 @@ export default function PostForm({ onSubmit, initialData, isSubmitting = false, 
    */
   const [title, setTitle] = useState(() => initialData?.title ?? '');
   const [content, setContent] = useState(() => initialData?.content ?? '');
-  const [category, setCategory] = useState(() => initialData?.category ?? 'general');
+  const [category, setCategory] = useState(() => initialData?.category ?? 'FREE');
   // 필드별 에러 메시지
   const [errors, setErrors] = useState({});
 

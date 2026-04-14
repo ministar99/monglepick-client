@@ -270,3 +270,75 @@ export const LoginPromptRow = styled.div`
   color: ${({ theme }) => theme.colors.textMuted};
   background-color: ${({ theme }) => theme.colors.bgElevated};
 `;
+
+export const Pagination = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin-top: ${({ theme }) => theme.spacing.lg};
+`;
+
+export const PageBtn = styled.button`
+  min-width: 36px;
+  height: 36px;
+  padding: 0 ${({ theme }) => theme.spacing.sm};
+  border-radius: ${({ theme }) => theme.radius.md};
+  border: 1px solid ${({ $active, theme }) =>
+    $active ? theme.colors.primary : theme.colors.borderDefault};
+  background: ${({ $active, theme }) =>
+    $active ? theme.gradients.primary : 'transparent'};
+  color: ${({ $active, theme }) =>
+    $active ? '#fff' : theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+export const SearchForm = styled.form`
+  display: flex;
+  gap: ${({ theme }) => theme.spacing.sm};
+`;
+
+export const SearchInput = styled.input`
+  flex: 1;
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+  background: ${({ theme }) => theme.glass.bg};
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.md};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: ${({ theme }) => theme.typography.textSm};
+
+  &::placeholder {
+    color: ${({ theme }) => theme.colors.textMuted};
+  }
+
+  &:focus {
+    outline: none;
+    border-color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+export const SearchBtn = styled.button`
+  padding: ${({ theme }) => `${theme.spacing.sm} ${theme.spacing.md}`};
+  background: ${({ theme }) => theme.gradients.primary};
+  border: none;
+  border-radius: ${({ theme }) => theme.radius.md};
+  cursor: pointer;
+  font-size: ${({ theme }) => theme.typography.textBase};
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: ${({ theme }) => theme.shadows.md};
+  }
+`;

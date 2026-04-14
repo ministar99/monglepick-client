@@ -128,3 +128,62 @@ export const Status = styled.div`
   color: ${({ theme }) => theme.colors.textMuted};
   font-size: ${({ theme }) => theme.typography.textSm};
 `;
+
+export const DeleteButton = styled.button`
+  margin-left: auto;
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid #e53e3e;
+  color: #e53e3e;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+
+  &:hover:not(:disabled) {
+    background: #e53e3e;
+    color: white;
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
+export const LikeBar = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-top: ${({ theme }) => theme.spacing.lg};
+  padding-top: ${({ theme }) => theme.spacing.md};
+  border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
+`;
+
+export const LikeButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => theme.spacing.sm} ${({ theme }) => theme.spacing.lg};
+  background: ${({ $liked, theme }) => $liked ? theme.colors.primaryLight : 'transparent'};
+  border: 1px solid ${({ $liked, theme }) => $liked ? theme.colors.primary : theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.full};
+  color: ${({ $liked, theme }) => $liked ? theme.colors.primary : theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover:not(:disabled) {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+export const ViewCount = styled.span`
+  margin-left: auto;
+  font-size: ${({ theme }) => theme.typography.textXs};
+  color: ${({ theme }) => theme.colors.textMuted};
+`;

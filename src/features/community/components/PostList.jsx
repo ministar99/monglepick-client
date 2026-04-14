@@ -65,9 +65,14 @@ export default function PostList({ posts = [], loading = false }) {
             <S.ItemHeader>
               {post.category && (
                 <S.CategoryBadge $category={post.category}>
-                  {post.category === 'review' ? '리뷰' :
-                   post.category === 'question' ? '질문' : '자유'}
-                </S.CategoryBadge>
+  {post.category === 'FREE' ? '자유' :
+   post.category === 'DISCUSSION' ? '토론' :
+   post.category === 'RECOMMENDATION' ? '추천' :
+   post.category === 'NEWS' ? '뉴스' :
+   post.category === 'free' ? '자유' :
+   post.category === 'review' ? '리뷰' :
+   post.category === 'question' ? '질문' : '자유'}
+</S.CategoryBadge>
               )}
               <S.PostTime>
                 📅 {formatRelativeTime(post.createdAt)}
@@ -90,14 +95,12 @@ export default function PostList({ posts = [], loading = false }) {
               </S.Author>
 
               {/* 통계 (좋아요, 댓글) */}
-              <S.Stats>
-                {post.likeCount !== undefined && (
-                  <S.Stat>❤️ {post.likeCount}</S.Stat>
-                )}
-                {post.commentCount !== undefined && (
-                  <S.Stat>💬 {post.commentCount}</S.Stat>
-                )}
-              </S.Stats>
+              {/* 통계 (좋아요, 댓글) */}
+<S.Stats>
+  <S.Stat>❤️ {post.likeCount ?? 0}</S.Stat>
+  <S.Stat>💬 {post.commentCount ?? 0}</S.Stat>
+  <S.Stat>👁 {post.viewCount ?? 0}</S.Stat>
+</S.Stats>
             </S.Meta>
           </S.ItemLink>
         </S.Item>
