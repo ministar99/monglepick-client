@@ -1,99 +1,107 @@
 /**
- * 도장깨기 리뷰 작성 페이지 (placeholder).
+ * 도장깨기 리뷰 작성 페이지.
  *
- * PR #79 (ministar99) 가 App.jsx 에 라우트 + import 만 추가했으나 실제 파일이
- * 누락되어 Vite 빌드 실패(Could not resolve ...StampReviewPage)를 유발했다.
- * 빌드 복구를 위해 최소 placeholder 페이지를 임시로 제공한다.
+ * 사용자가 영화를 시청한 후 텍스트 리뷰를 작성하면
+ * course_review 테이블에 저장되고, 백엔드에서 AI 유사도 분석을 처리한다.
+ * 분석 결과는 이 페이지에서 보여주지 않는다.
  *
- * 흐름 (본격 구현 시):
- *   1. URL 파라미터 courseId + movieId 로 컨텍스트 확정
- *   2. 리뷰 본문 입력 + 별점
- *   3. 제출 시 `completeMovie(courseId, movieId, { text, rating })` 호출
- *   4. Agent `/admin/ai/review-verification/verify` 와 후속 연동
- *
- * 현재는 다른 방식(PostWatchFeedback 모달)으로도 리뷰 작성이 가능하므로 UX 차단은 없음.
+ * URL: /stamp/:courseId/review/:movieId
  *
  * @module features/roadmap/pages/StampReviewPage
  */
 
 import { useState } from 'react';
-import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useModal } from '../../../shared/components/Modal';
+import { ROUTES, buildPath } from '../../../shared/constants/routes';
 import { completeMovie } from '../api/roadmapApi';
+import * as S from './StampReviewPage.styled';
+
+const MAX_LENGTH = 500;
 
 export default function StampReviewPage() {
   const { courseId, movieId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const movieTitle = location.state?.movieTitle ?? '선택 영화';
-  const courseTitle = location.state?.courseTitle ?? '도장깨기 코스';
+  const { showAlert } = useModal();
+
+  /* navigate 시 state로 영화 제목/코스 제목 전달받음 */
+  const movieTitle = location.state?.movieTitle || '영화';
+  const courseTitle = location.state?.courseTitle || '코스';
 
   const [reviewText, setReviewText] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
 
-  async function handleSubmit(e) {
-    e.preventDefault();
+  /** 뒤로가기 — 코스 상세 페이지 */
+  const handleBack = () => {
+    navigate(buildPath(ROUTES.STAMP_DETAIL, { id: courseId }));
+  };
+
+  /** 리뷰 제출 */
+  const handleSubmit = async () => {
     if (!reviewText.trim()) {
-      setError('리뷰 내용을 입력해주세요.');
+      showAlert({ title: '안내', message: '리뷰를 작성해 주세요.', type: 'info' });
       return;
     }
     setIsSubmitting(true);
-    setError(null);
     try {
-      await completeMovie(courseId, movieId, { reviewText });
-      // 성공 시 코스 상세로 복귀
-      navigate(`/stamp/${courseId}`, { replace: true });
-    } catch (e2) {
-      setError(e2.message || '리뷰 저장에 실패했습니다.');
+      await completeMovie(courseId, movieId, reviewText.trim());
+      showAlert({
+        title: '도장 완료!',
+        message: `'${movieTitle}' 영화 도장을 찍었어요!`,
+        type: 'success',
+      });
+      navigate(buildPath(ROUTES.STAMP_DETAIL, { id: courseId }));
+    } catch (err) {
+      showAlert({
+        title: '오류',
+        message: err?.message || '저장에 실패했습니다.',
+        type: 'error',
+      });
     } finally {
       setIsSubmitting(false);
     }
-  }
+  };
 
   return (
-    <section style={{ padding: '2rem', maxWidth: 720, margin: '0 auto' }}>
-      <button
-        type="button"
-        onClick={() => navigate(-1)}
-        style={{ marginBottom: '1rem', padding: '0.5rem 1rem', cursor: 'pointer' }}
-      >
-        ← 이전
-      </button>
+    <S.Container>
+      <S.BackLink onClick={handleBack}>← 코스로 돌아가기</S.BackLink>
 
-      <h1 style={{ fontSize: '1.5rem', marginBottom: '0.5rem' }}>시청 인증 & 리뷰 작성</h1>
-      <p style={{ color: '#666', marginBottom: '1rem' }}>
-        {courseTitle} · {movieTitle}
-      </p>
+      <S.Header>
+        <S.CourseName>{courseTitle}</S.CourseName>
+        <S.PageTitle>도장깨기 리뷰</S.PageTitle>
+        <S.MovieName>🎬 {movieTitle}</S.MovieName>
+      </S.Header>
 
-      <form onSubmit={handleSubmit}>
-        <textarea
+      <S.Card>
+        <S.Label>이 영화를 보고 느낀 점을 자유롭게 적어주세요.</S.Label>
+        <S.Hint>
+          줄거리, 인상적인 장면, 감독의 연출 방식, 배우의 연기 등
+          영화와 관련된 내용이라면 무엇이든 좋아요.
+        </S.Hint>
+        <S.Textarea
+          placeholder="예) 봉준호 감독의 계단 연출이 인상적이었어요. 빈부격차를 공간으로 표현한 방식이 탁월했습니다..."
           value={reviewText}
           onChange={(e) => setReviewText(e.target.value)}
-          placeholder="영화를 본 감상을 자유롭게 적어주세요. (최소 10자)"
-          rows={8}
-          style={{ width: '100%', padding: '0.75rem', fontSize: '1rem', resize: 'vertical' }}
-          disabled={isSubmitting}
+          maxLength={MAX_LENGTH}
+          autoFocus
         />
+        <S.CharCount $warn={reviewText.length > MAX_LENGTH * 0.9}>
+          {reviewText.length} / {MAX_LENGTH}
+        </S.CharCount>
+      </S.Card>
 
-        {error && <p style={{ color: '#d9534f', marginTop: '0.5rem' }}>{error}</p>}
-
-        <button
-          type="submit"
-          disabled={isSubmitting || reviewText.length < 10}
-          style={{
-            marginTop: '1rem',
-            padding: '0.75rem 1.5rem',
-            fontSize: '1rem',
-            cursor: (isSubmitting || reviewText.length < 10) ? 'not-allowed' : 'pointer',
-          }}
+      <S.Actions>
+        <S.CancelBtn onClick={handleBack} disabled={isSubmitting}>
+          취소
+        </S.CancelBtn>
+        <S.SubmitBtn
+          onClick={handleSubmit}
+          disabled={isSubmitting || !reviewText.trim()}
         >
-          {isSubmitting ? '제출 중…' : '인증 제출'}
-        </button>
-      </form>
-
-      <p style={{ marginTop: '2rem', color: '#888', fontSize: '0.9rem' }}>
-        (이 화면은 빌드 복구를 위한 임시 placeholder 입니다. 본격 인증 UX·AI 리뷰 검증 연동은 후속 PR 예정.)
-      </p>
-    </section>
+          {isSubmitting ? '저장 중...' : '도장 찍기 완료'}
+        </S.SubmitBtn>
+      </S.Actions>
+    </S.Container>
   );
 }

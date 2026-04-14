@@ -26,7 +26,7 @@ import {
   addMovieToPlaylist,
 } from '../api/playlistApi';
 import { searchMoviesByKeyword } from '../../movie/api/movieApi';
-import { sharePlaylist, deletePlaylistPost } from '../../community/api/communityApi';
+import { sharePlaylist } from '../../community/api/communityApi';
 import * as S from './PlaylistPage.styled';
 
 /** TMDB 포스터 URL */
@@ -49,7 +49,6 @@ export default function PlaylistPage() {
    * 버튼 구현 시 value 를 읽어 네비게이션에 사용할 예정. 미사용 lint 회피를 위해
    * 첫 요소를 생략 구조분해로 처리. */
   const [, setSharedPostId] = useState(null);
-  const [isTogglingPublic, setIsTogglingPublic] = useState(false);
 
   /* ── 폼 모달 상태 ── */
   const [showForm, setShowForm] = useState(false);
@@ -57,6 +56,10 @@ export default function PlaylistPage() {
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  /* ── 케밥 메뉴 상태 ── */
+  const [openMenuId, setOpenMenuId] = useState(null);
+
 
   /* ── 영화 추가 모달 상태 ── */
   const [showAddMovie, setShowAddMovie] = useState(false);
@@ -102,89 +105,59 @@ export default function PlaylistPage() {
   useEffect(() => {
     if (detailId) {
       loadDetail(detailId);
-      /* 소유자 확인을 위해 내 플레이리스트 목록도 로드 */
-      loadPlaylists();
     } else {
       loadPlaylists();
       setDetail(null);
     }
   }, [detailId, loadPlaylists, loadDetail]);
 
-  /**
-   * 공개/비공개 토글.
-   * - 공개로 전환: updatePlaylist(DB isPublic=true) 성공 후 커뮤니티 자동 게시
-   * - 비공개로 전환: updatePlaylist(DB isPublic=false) 성공 후 커뮤니티 게시글 삭제
-   *
-   * 실패 분리 원칙:
-   * - updatePlaylist 실패 → DB 변경 없음이므로 UI도 롤백
-   * - sharePlaylist 실패  → DB는 이미 isPublic=true이므로 UI 상태는 유지,
-   *                         커뮤니티 게시 실패 안내만 표시 (불일치 방지)
-   */
-  const handleTogglePublic = async () => {
-    if (!detail || isTogglingPublic) return;
-    const newIsPublic = !detail.isPublic;
-    setIsTogglingPublic(true);
+  /* 케밥 메뉴 외부 클릭 시 닫기 */
+  useEffect(() => {
+    if (!openMenuId) return;
+    const handler = () => setOpenMenuId(null);
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, [openMenuId]);
 
-    /* ── 1단계: DB isPublic 변경 ── */
-    try {
-      await updatePlaylist(detail.playlistId, {
-        title: detail.playlistName,
-        description: detail.description || '',
-        isPublic: newIsPublic,
-      });
-    } catch (err) {
-      /* updatePlaylist 실패: DB 미변경 → UI 롤백 */
-      showAlert({
-        title: '오류',
-        message: err?.message || '공개 설정 변경에 실패했습니다.',
-        type: 'error',
-      });
-      setIsTogglingPublic(false);
+  /** 공유 확인 후 바로 커뮤니티 게시 */
+  const handleShare = async (playlist, e) => {
+    e.stopPropagation();
+    setOpenMenuId(null);
+
+    if (playlist.isPublic) {
+      showAlert({ title: '알림', message: '이미 공유된 플레이리스트예요.', type: 'info' });
       return;
     }
 
-    /* DB 반영 성공 → UI를 즉시 동기화 */
-    setDetail((prev) => ({ ...prev, isPublic: newIsPublic }));
+    const confirmed = await showConfirm({
+      title: '플레이리스트 공유',
+      message: `'${playlist.playlistName}'을(를) 커뮤니티에 공유할까요?`,
+      confirmLabel: '공유',
+    });
+    if (!confirmed) return;
 
-    /* ── 2단계: 커뮤니티 게시/삭제 (sharePlaylist 실패는 UI 롤백 없음) ── */
-    if (newIsPublic) {
-      /* 공개 → 커뮤니티 자동 게시 */
+    try {
+      await updatePlaylist(playlist.playlistId, {
+        title: playlist.playlistName,
+        description: playlist.description || '',
+        isPublic: true,
+      });
+      setPlaylists((prev) =>
+        prev.map((p) => p.playlistId === playlist.playlistId ? { ...p, isPublic: true } : p)
+      );
       try {
-        const post = await sharePlaylist({
-          title: detail.playlistName,
-          content: `${detail.playlistName} 플레이리스트를 공유합니다.`,
-          playlistId: detail.playlistId,
-        });
-        setSharedPostId(post?.id ?? null);
-        showAlert({
-          title: '공개 완료',
-          message: '커뮤니티 플레이리스트 공유에 게시됐어요!',
-          type: 'success',
+        await sharePlaylist({
+          title: playlist.playlistName,
+          content: `${playlist.playlistName} 플레이리스트를 공유합니다.`,
+          playlistId: playlist.playlistId,
         });
       } catch {
-        /*
-         * sharePlaylist 실패: DB는 이미 isPublic=true로 저장됨.
-         * UI 상태를 롤백하면 DB↔UI 불일치가 발생하므로 롤백하지 않는다.
-         * 사용자에게 커뮤니티 게시만 실패했음을 안내한다.
-         */
-        showAlert({
-          title: '알림',
-          message: '플레이리스트는 공개 전환됐지만, 커뮤니티 게시에 실패했어요. 잠시 후 다시 시도해 주세요.',
-          type: 'warning',
-        });
+        /* 커뮤니티 게시 실패 — DB는 이미 공개 상태이므로 롤백하지 않음 */
       }
-    } else {
-      /* 비공개 → playlistId로 공유 게시글 삭제 (postId 소실 여부 무관) */
-      try {
-        await deletePlaylistPost(detail.playlistId);
-      } catch {
-        /* 이미 삭제됐거나 게시글이 없는 경우 무시 */
-      }
-      setSharedPostId(null);
-      showAlert({ title: '비공개 전환', message: '비공개로 변경됐어요.', type: 'info' });
+      showAlert({ title: '공유 완료', message: '커뮤니티에 공유됐어요!', type: 'success' });
+    } catch (err) {
+      showAlert({ title: '오류', message: err?.message || '공유에 실패했습니다.', type: 'error' });
     }
-
-    setIsTogglingPublic(false);
   };
 
   /* ── 생성/수정 폼 핸들러 ── */
@@ -315,10 +288,6 @@ export default function PlaylistPage() {
 
   /* ── 상세 뷰 ── */
   if (detailId) {
-    /* 내 플레이리스트 목록에 있으면 소유자, 단 가져온(import) 플레이리스트는 토글 불가 */
-    const isOwner = playlists.some((p) => String(p.playlistId) === String(detailId));
-    const canTogglePublic = isOwner && !detail?.isImported;
-
     return (
       <S.Container>
         <S.BackLink onClick={() => navigate(ROUTES.PLAYLIST)}>
@@ -343,25 +312,9 @@ export default function PlaylistPage() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                 <S.CardMeta>{(detail.items || []).length}편</S.CardMeta>
-                {/* 공개/비공개: 소유자이며 가져온 플레이리스트가 아닐 때만 토글 가능 */}
-                {canTogglePublic ? (
-                  <S.ToggleRow style={{ margin: 0 }}>
-                    <S.ToggleLabel style={{ fontSize: 13 }}>
-                      {detail.isPublic ? '🌐 공개' : '🔒 비공개'}
-                    </S.ToggleLabel>
-                    <S.ToggleSwitch
-                      $on={detail.isPublic}
-                      onClick={handleTogglePublic}
-                      disabled={isTogglingPublic}
-                      type="button"
-                      title={detail.isPublic ? '비공개로 전환' : '공개로 전환'}
-                    />
-                  </S.ToggleRow>
-                ) : (
-                  <S.CardMeta style={{ fontSize: 12, opacity: 0.6 }}>
-                    {detail.isPublic ? '🌐 공개' : '🔒 비공개'}
-                  </S.CardMeta>
-                )}
+                <S.CardMeta style={{ fontSize: 12, opacity: 0.6 }}>
+                  {detail.isPublic ? '🌐 공개' : '🔒 비공개'}
+                </S.CardMeta>
               </div>
             </S.Header>
 
@@ -487,18 +440,44 @@ export default function PlaylistPage() {
       {!isLoading && playlists.length > 0 && (
         <S.Grid>
           {playlists.map((pl) => (
-            <S.Card key={pl.playlistId} onClick={() => navigate(buildPath(ROUTES.PLAYLIST_DETAIL, { id: pl.playlistId }))}>
-              <S.CardTitle>{pl.playlistName}</S.CardTitle>
+            <S.Card
+              key={pl.playlistId}
+              onClick={() => navigate(buildPath(ROUTES.PLAYLIST_DETAIL, { id: pl.playlistId }))}
+            >
+              {/* 제목 + 케밥 메뉴 */}
+              <S.CardHeaderRow>
+                <S.CardTitle>{pl.playlistName}</S.CardTitle>
+                <S.KebabMenuWrap onClick={(e) => e.stopPropagation()}>
+                  <S.KebabBtn
+                    title="더 보기"
+                    onClick={() =>
+                      setOpenMenuId(openMenuId === pl.playlistId ? null : pl.playlistId)
+                    }
+                  >
+                    ⋮
+                  </S.KebabBtn>
+                  {openMenuId === pl.playlistId && (
+                    <S.DropdownMenu>
+                      <S.DropdownItem onClick={(e) => openEditForm(pl, e)}>
+                        ✏️ 수정
+                      </S.DropdownItem>
+                      <S.DropdownDivider />
+                      <S.DropdownItem onClick={(e) => handleShare(pl, e)}>
+                        🔗 공유
+                      </S.DropdownItem>
+                      <S.DropdownDivider />
+                      <S.DropdownItem $danger onClick={(e) => handleDelete(pl, e)}>
+                        🗑️ 삭제
+                      </S.DropdownItem>
+                    </S.DropdownMenu>
+                  )}
+                </S.KebabMenuWrap>
+              </S.CardHeaderRow>
+
               {pl.description && <S.CardDesc>{pl.description}</S.CardDesc>}
               <S.CardMeta>
                 <span>{pl.movieCount ?? 0}편</span>
-                <span style={{ fontSize: 12, opacity: 0.6 }}>
-                  {pl.isPublic ? '🌐 공개' : '🔒 비공개'}
-                </span>
-                <S.CardActions>
-                  <S.SmallBtn onClick={(e) => openEditForm(pl, e)}>수정</S.SmallBtn>
-                  <S.SmallBtn className="danger" onClick={(e) => handleDelete(pl, e)}>삭제</S.SmallBtn>
-                </S.CardActions>
+                <span>{pl.isPublic ? '🌐 공개' : '🔒 비공개'}</span>
               </S.CardMeta>
             </S.Card>
           ))}
@@ -550,6 +529,7 @@ export default function PlaylistPage() {
         </S.FormOverlay>,
         document.body
       )}
+
     </S.Container>
   );
 }

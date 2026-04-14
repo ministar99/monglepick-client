@@ -158,10 +158,17 @@ export default function SharedPlaylistDetailPage() {
   const navigate = useNavigate();
   const { showAlert } = useModal();
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
+  const currentUser = useAuthStore((s) => s.user);
 
   const [detail, setDetail] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isImporting, setIsImporting] = useState(false);
+
+  /* 본인이 만든 플레이리스트면 가져오기 숨김 */
+  const isOwner =
+    detail != null &&
+    currentUser != null &&
+    String(detail.userId ?? detail.ownerId ?? '') === String(currentUser.id ?? currentUser.userId ?? '');
 
   useEffect(() => {
     async function load() {
@@ -215,9 +222,11 @@ export default function SharedPlaylistDetailPage() {
               {detail.description && <Desc>{detail.description}</Desc>}
               <Meta>{(detail.items || []).length}편</Meta>
             </TitleWrap>
-            <ImportBtn onClick={handleImport} disabled={isImporting}>
-              {isImporting ? '가져오는 중...' : '📥 내 플레이리스트에 퍼가기'}
-            </ImportBtn>
+            {!isOwner && (
+              <ImportBtn onClick={handleImport} disabled={isImporting}>
+                {isImporting ? '가져오는 중...' : '📥 내 플레이리스트에 퍼가기'}
+              </ImportBtn>
+            )}
           </Header>
 
           {(detail.items || []).length > 0 ? (
