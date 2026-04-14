@@ -1,27 +1,4 @@
 import { useState, useEffect } from 'react';
-/**
- * 커뮤니티 페이지 컴포넌트.
- *
- * 게시글/리뷰/오늘의 퀴즈를 탭으로 전환하여 표시한다.
- * - 게시글 탭: PostList + PostForm (새 글 작성)
- * - 리뷰 탭:   안내 메시지 (EmptyState)
- * - 퀴즈 탭:   QuizPage 본문 — 오늘의 퀴즈 카드 목록 + 리워드 (v2 개편으로 헤더에서 이관)
- *
- * 개선 사항:
- * - 탭 활성 시 하단 3px 그라데이션 바
- * - 탭 호버 시 배경색 변화
- * - 게시글 작성 버튼을 본문 내 명확한 라벨 버튼으로 변경 (v2 개편: 우하단 FAB 폐기)
- * - 리뷰 탭에 EmptyState 컴포넌트 적용
- *
- * 인증된 사용자는 새 게시글을 작성할 수 있으며,
- * 비로그인 사용자에게는 "로그인 후 작성 가능" 안내를 노출한다.
- *
- * URL 파라미터:
- *   ?tab=posts|reviews|quiz — 진입 시 활성 탭 지정 (외부 링크/즐겨찾기 호환)
- *   잘못된 값이거나 누락 시 기본값은 'posts'.
- */
-
-import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useModal } from '../../../shared/components/Modal';
 import { useRewardToast } from '../../../shared/components/RewardToast';
@@ -60,6 +37,17 @@ export default function CommunityPage() {
   const initialTab = tabFromUrl && VALID_TAB_IDS.has(tabFromUrl) ? tabFromUrl : 'posts';
 
   const [activeTab, setActiveTab] = useState(initialTab);
+  const [posts, setPosts] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showForm, setShowForm] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [category, setCategory] = useState('all');
+  const [keyword, setKeyword] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
 
   const handleTabChange = (tabId) => {
     setActiveTab(tabId);
@@ -77,87 +65,48 @@ export default function CommunityPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tabFromUrl]);
 
-  const [posts, setPosts] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [category, setCategory] = useState('all');
-
-  // ✅ 검색어 상태 추가
-  const [keyword, setKeyword] = useState('');
-  const [searchInput, setSearchInput] = useState('');
-
-  // ✅ 페이지네이션 상태 추가
-  const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated());
-
   useEffect(() => {
     async function loadPosts() {
       setIsLoading(true);
-      
       try {
-        const result = await getPosts({ page: currentPage, size: 5, category, keyword }); // ✅ size: 5
+        const result = await getPosts({ page: currentPage, size: 5, category, keyword });
         setPosts(result?.posts || []);
-        setTotalPages(result?.totalPages || 1); // ✅ 전체 페이지 수 저장
+        setTotalPages(result?.totalPages || 1);
       } catch (err) {
         console.error('[CommunityPage] 게시글 로드 실패:', err);
         setPosts([]);
       } finally {
         setIsLoading(false);
       }
-      
-  /**
-   * 게시글 목록을 로드한다.
-   *
-   * activeTab 이 'posts' 일 때 또는 카테고리 필터가 변경될 때 재실행된다.
-   * 카테고리 변경 시 즉시 재조회로 사용자 의도에 빠르게 반응한다.
-   */
-  const loadPosts = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const result = await getPosts({ page: 1, size: 20, category });
-      setPosts(result?.posts || []);
-    } catch (err) {
-      console.error('[CommunityPage] 게시글 로드 실패:', err);
-      setPosts([]);
-    } finally {
-      setIsLoading(false);
     }
-  }, [category]);
 
-  useEffect(() => {
     if (activeTab === 'posts') {
       loadPosts();
-      
     }
-  }, [activeTab, category, currentPage, keyword]); // ✅ currentPage 추가
+  }, [activeTab, category, currentPage, keyword]);
 
-  // ✅ 카테고리 변경 시 1페이지로 리셋
   const handleCategoryChange = (id) => {
     setCategory(id);
     setCurrentPage(1);
-    setKeyword('');       // ✅ 추가
-    setSearchInput('');   // ✅ 추가
+    setKeyword('');
+    setSearchInput('');
   };
-  }, [activeTab, loadPosts]);
 
   const handleSearch = (e) => {
-  e.preventDefault();
-  setKeyword(searchInput);
-  setCurrentPage(1);
+    e.preventDefault();
+    setKeyword(searchInput);
+    setCurrentPage(1);
   };
-  
+
   const handleCreatePost = async (postData) => {
     setIsSubmitting(true);
     try {
       const newPost = await createPost(postData);
-      setPosts((prev) => [newPost, ...prev]);
       setShowForm(false);
-      setShowForm(false);
-      await loadPosts();
-      // 리워드 지급 시 토스트 알림
+      setCurrentPage(1);
+      setKeyword('');
+      setSearchInput('');
+      setCategory('all');
       if (newPost?.rewardPoints > 0) {
         showReward(newPost.rewardPoints, '게시글 작성');
       }
@@ -196,15 +145,17 @@ export default function CommunityPage() {
           {activeTab === 'posts' && (
             <>
               {/* 검색창 */}
-<S.SearchForm onSubmit={handleSearch}>
-  <S.SearchInput
-    type="text"
-    value={searchInput}
-    onChange={(e) => setSearchInput(e.target.value)}
-    placeholder="제목 또는 내용으로 검색..."
-  />
-  <S.SearchBtn type="submit">🔍</S.SearchBtn>
-</S.SearchForm>
+              <S.SearchForm onSubmit={handleSearch}>
+                <S.SearchInput
+                  type="text"
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  placeholder="제목 또는 내용으로 검색..."
+                />
+                <S.SearchBtn type="submit">🔍</S.SearchBtn>
+              </S.SearchForm>
+
+              {/* 카테고리 필터 */}
               <S.CategoryChipRow role="tablist" aria-label="게시글 카테고리 필터">
                 {CATEGORY_FILTERS.map((c) => (
                   <S.CategoryChip
@@ -213,7 +164,7 @@ export default function CommunityPage() {
                     role="tab"
                     aria-selected={category === c.id}
                     $active={category === c.id}
-                    onClick={() => handleCategoryChange(c.id)} // ✅ 수정
+                    onClick={() => handleCategoryChange(c.id)}
                   >
                     {c.label}
                   </S.CategoryChip>
@@ -248,7 +199,7 @@ export default function CommunityPage() {
 
               <PostList posts={posts} loading={isLoading} />
 
-              {/* ✅ 페이지네이션 */}
+              {/* 페이지네이션 */}
               {totalPages > 1 && (
                 <S.Pagination>
                   <S.PageBtn
