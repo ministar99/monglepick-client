@@ -67,14 +67,73 @@ const FEATURES = [
   { icon: '🎬', title: 'AI 퀴즈 & 씬 맞추기', desc: '매일 새로운 영화 퀴즈와 스틸컷 맞추기 게임으로 커뮤니티가 살아있어요.', tag: '커뮤니티', color: '#f97316' },
 ];
 
+/**
+ * Neo4j Browser "빠른 쿼리 프리필" URL 빌더.
+ *
+ * Neo4j Browser 는 보안상 URL 파라미터로부터 Cypher 자동 실행을 지원하지 않는다.
+ * 대신 `?cmd=edit&arg=<cypher>` 로 에디터에 쿼리를 프리필해 "열자마자 여러 쿼리가
+ * 눈에 보이는 상태" 를 만들 수 있다. 아래 multi-statement 스크립트를 통째로
+ * 붙여넣어 줌으로써 사용자는 원하는 블록을 선택 후 Ctrl+Enter 로 실행한다.
+ *
+ * 노드 라벨: Movie/Person/Genre/MoodTag — 관계: DIRECTED/ACTED_IN/HAS_GENRE/HAS_MOOD
+ */
+const NEO4J_PRELOAD_CYPHER = [
+  '// 몽글픽 Neo4j 빠른 쿼리 샘플 — 원하는 블록 선택 후 Ctrl+Enter 로 실행하세요',
+  '',
+  '// 1) 전체 노드 수 (라벨별)',
+  'MATCH (n) RETURN labels(n) AS label, count(*) AS cnt ORDER BY cnt DESC;',
+  '',
+  '// 2) 장르별 영화 TOP 20',
+  'MATCH (m:Movie)-[:HAS_GENRE]->(g:Genre) RETURN g.name AS genre, count(m) AS movies ORDER BY movies DESC LIMIT 20;',
+  '',
+  '// 3) 봉준호 감독 영화 네트워크',
+  "MATCH (d:Person {name:'봉준호'})-[:DIRECTED]->(m:Movie)<-[:ACTED_IN]-(a:Person) RETURN d, m, a LIMIT 100;",
+  '',
+  '// 4) 최민식 ∩ 송강호 함께 출연한 영화',
+  "MATCH (a:Person {name:'최민식'})-[:ACTED_IN]->(m:Movie)<-[:ACTED_IN]-(b:Person {name:'송강호'}) RETURN a, m, b;",
+  '',
+  "// 5) 무드태그 '따뜻한' 영화 샘플",
+  "MATCH (m:Movie)-[:HAS_MOOD]->(t:MoodTag {name:'따뜻한'}) RETURN m.title, m.vote_average ORDER BY m.vote_average DESC LIMIT 30;",
+].join('\n');
+
+/**
+ * Neo4j Browser iframe/링크 URL.
+ *
+ * Nginx 에서 X-Frame-Options: DENY + CSP frame-ancestors:none 을 strip 했으므로
+ * iframe 임베딩이 가능하다. `?cmd=edit&arg=<cypher>` 로 쿼리를 에디터에 프리필.
+ * (Neo4j Browser 는 보안상 URL 기반 자동 실행은 지원하지 않으며 Ctrl+Enter 필요)
+ */
+const NEO4J_BROWSER_URL =
+  `http://210.109.15.187/browser/?connectURL=neo4j://210.109.15.187:7687&preselectAuthMethod=NO_AUTH&cmd=edit&arg=${encodeURIComponent(NEO4J_PRELOAD_CYPHER)}`;
+
+/**
+ * TensorFlow Projector URL — 실제 몽글픽 벡터 데이터(3000편 × 200D) 로드.
+ *
+ * projector.tensorflow.org 는 HTTPS 전용이라 HTTP 벡터 파일 fetch 시 mixed content 차단.
+ * → 해결: projector HTML 을 VM1 에 self-host 해 same-origin HTTP 로 제공.
+ */
+/** config 경로가 HTML 에 직접 하드코딩되어 있으므로 URL 파라미터 불필요 */
+const TF_PROJECTOR_URL = 'http://210.109.15.187/static/projector/index.html';
+
 /* ── 관리/모니터링/참고 링크 데이터 ── */
 const QUICK_LINKS = {
-  /* 서비스 관리 — VM1 Nginx 리버스 프록시 경유 URL (VM3는 Private IP) */
+  /**
+   * 서비스 관리 — VM1 Nginx 리버스 프록시 경유 URL (VM3/VM4는 Private IP).
+   *
+   * 2026-04-16 개편:
+   *  - Prometheus 카드 제거 (사용자 요청, Grafana 로 충분히 소화됨)
+   *  - Neo4j Browser 카드 추가 (클릭 시 빠른 쿼리 5종이 에디터에 프리필된 상태로 열림 —
+   *    Neo4j Browser 는 보안상 쿼리 자동 실행을 지원하지 않으므로 사용자 Ctrl+Enter 필요)
+   *  - Swagger/OpenAPI 카드 3종 추가 (Backend / Agent / Recommend)
+   */
   services: [
-    { icon: '🛠️', label: '관리자 페이지', url: 'http://210.109.15.187/admin/', desc: 'Admin 대시보드 · 운영 도구' },
+    { icon: '🛠️', label: '관리자 페이지',   url: 'http://210.109.15.187/admin/',              desc: 'Admin 대시보드 · 운영 도구' },
     { icon: '📊', label: 'Grafana 대시보드', url: 'http://210.109.15.187/monitoring/grafana/', desc: 'Prometheus 메트릭 모니터링' },
-    { icon: '📋', label: 'Kibana (ELK)', url: 'http://210.109.15.187/monitoring/kibana/', desc: '로그 검색 · 시각화' },
-    { icon: '🔍', label: 'Prometheus', url: 'http://210.109.15.187/monitoring/prometheus/', desc: '메트릭 쿼리 · 알림 규칙' },
+    { icon: '📋', label: 'Kibana (ELK)',     url: 'http://210.109.15.187/monitoring/kibana/',  desc: '로그 검색 · 시각화' },
+    /* Swagger/OpenAPI — 3개 서비스 API 명세 */
+    { icon: '📘', label: 'Backend Swagger',   url: 'http://210.109.15.187/swagger-ui/index.html', desc: 'Spring Boot · springdoc OpenAPI' },
+    { icon: '📗', label: 'Agent Swagger',     url: 'http://210.109.15.187/agent/docs',            desc: 'FastAPI · AI Agent :8000' },
+    { icon: '📙', label: 'Recommend Swagger', url: 'http://210.109.15.187/recommend/docs',        desc: 'FastAPI · Recommend :8001' },
   ],
   /* 팀원별 GitHub & 참고 링크 */
   members: [
@@ -731,6 +790,77 @@ export default function LandingPage() {
           </S.DataGrid>
         </S.Container>
       </S.Data>
+
+      {/* ── Neo4j 그래프 시각화 (정적 JSON 덤프 + vis-network) ──
+          Neo4j HTTP API 로 봉준호 네트워크 / 영화-장르 / 영화-무드태그 쿼리를 실행해
+          126노드·176엣지를 graph_dump.json 으로 추출. vis-network 로 인터랙티브 렌더.
+          Bolt 포트 불필요, 로딩 즉시 그래프 표시.
+          ────────────────────────────────────────────────────────────── */}
+      <S.EmbeddingSection>
+        <S.Container>
+          <S.Reveal className="lp-reveal">
+            <S.SectionLabel>Graph Database</S.SectionLabel>
+            <S.SectionTitle>Neo4j 그래프 시각화</S.SectionTitle>
+            <S.SectionSubtitle style={{ margin: '0 auto' }}>
+              봉준호 감독 네트워크를 중심으로 영화-배우-장르-무드 관계 그래프를 탐색합니다
+            </S.SectionSubtitle>
+          </S.Reveal>
+          <S.Reveal className="lp-reveal" $delay="0.15s">
+            <S.EmbeddingIframeWrap>
+              <iframe
+                src="http://210.109.15.187/static/vectors/graph.html"
+                title="몽글픽 Neo4j 그래프 시각화 — 봉준호 감독 네트워크"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allow="fullscreen"
+                loading="lazy"
+              />
+            </S.EmbeddingIframeWrap>
+            <S.EmbeddingNote>
+              상단 버튼으로 <b>봉준호 네트워크</b> / <b>영화-장르</b> / <b>영화-무드태그</b> / <b>전체</b> 전환.
+              노드 클릭 시 좌측 하단에 상세 정보 표시. 드래그로 이동, 스크롤로 줌.
+              <br />
+              Neo4j 5 Community &middot; 노드 126개 &middot; 엣지 176개 &middot;
+              vis-network 렌더링
+            </S.EmbeddingNote>
+          </S.Reveal>
+        </S.Container>
+      </S.EmbeddingSection>
+
+      {/* ── 벡터 임베딩 시각화 (TensorFlow Projector — 실제 몽글픽 벡터 데이터) ──
+          Qdrant 에서 인기 3000편의 Upstage Solar 4096D 벡터를 200D 로 truncate 해
+          tensors.bytes + metadata.tsv 로 추출. TF Projector 가 PCA/t-SNE/UMAP 3D 투영.
+          ────────────────────────────────────────────────────────────── */}
+      <S.EmbeddingSection>
+        <S.Container>
+          <S.Reveal className="lp-reveal">
+            <S.SectionLabel>Vector Space</S.SectionLabel>
+            <S.SectionTitle>벡터 임베딩 시각화</S.SectionTitle>
+            <S.SectionSubtitle style={{ margin: '0 auto' }}>
+              Upstage Solar 4096차원 벡터를 3D 공간에 투영해 영화 간 의미적 거리를 직관적으로 탐색합니다
+            </S.SectionSubtitle>
+          </S.Reveal>
+          <S.Reveal className="lp-reveal" $delay="0.15s">
+            <S.EmbeddingIframeWrap>
+              <iframe
+                src={TF_PROJECTOR_URL}
+                title="몽글픽 영화 임베딩 시각화 — TensorFlow Projector (3000편 × 200D)"
+                width="100%"
+                height="100%"
+                style={{ border: 0 }}
+                allow="fullscreen"
+                loading="lazy"
+              />
+            </S.EmbeddingIframeWrap>
+            <S.EmbeddingNote>
+              TensorFlow Embedding Projector — PCA / t-SNE / UMAP 3D 시각화.
+              Qdrant 에서 추출한 3,000편 영화 벡터 (Upstage Solar 4096D → 200D truncation).
+              제목·장르·감독·무드·평점 메타데이터로 라벨링.
+            </S.EmbeddingNote>
+          </S.Reveal>
+        </S.Container>
+      </S.EmbeddingSection>
 
       {/* ── 진행 현황 ── */}
       <S.Timeline id="lp-progress">

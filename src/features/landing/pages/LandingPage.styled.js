@@ -1729,6 +1729,64 @@ export const DataCardSub = styled.div`
 `;
 
 /* ================================================================
+   벡터 임베딩 시각화 (TensorFlow Projector iframe) — 2026-04-16 추가
+   ================================================================ */
+
+/** 임베딩 시각화 섹션 래퍼 */
+export const EmbeddingSection = styled(SectionBase)`
+  padding: 120px 0;
+
+  @media (max-width: 600px) {
+    padding: 60px 0;
+  }
+`;
+
+/**
+ * iframe 래퍼.
+ * TF Projector 3D 캔버스(WebGL)에서 점 클릭이 작동하려면:
+ *  - overflow: visible (hidden 이면 캔버스 이벤트 영역이 잘릴 수 있음)
+ *  - pointer-events 명시적 auto
+ *  - 충분한 높이 (800px+) — 3D 공간이 좁으면 hit-test 정밀도 저하
+ */
+export const EmbeddingIframeWrap = styled.div`
+  position: relative;
+  width: 100%;
+  height: 800px;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid ${({ theme }) => theme.landing.border};
+  background: #111;
+  box-shadow: 0 0 60px rgba(124, 108, 240, 0.08);
+
+  & > iframe {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    border-radius: 16px;
+    pointer-events: auto;
+  }
+
+  @media (max-width: 768px) {
+    height: 600px;
+  }
+  @media (max-width: 480px) {
+    height: 500px;
+  }
+`;
+
+/** 하단 안내 텍스트 */
+export const EmbeddingNote = styled.p`
+  text-align: center;
+  font-size: 0.78rem;
+  color: ${({ theme }) => theme.landing.textMuted};
+  margin-top: 16px;
+  opacity: 0.7;
+  line-height: 1.6;
+`;
+
+/* ================================================================
    타임라인 (진행 현황) — .lp-timeline
    ================================================================ */
 
@@ -2052,13 +2110,24 @@ export const QLSubTitle = styled.h3`
 
 /* ── 서비스 관리 카드 그리드 ── */
 
-/** 서비스 카드 그리드 (2×2) */
+/**
+ * 서비스 카드 그리드.
+ * 2026-04-16: 카드가 4개 → 7개(Neo4j + Swagger 3종 추가)로 늘어나며
+ * 고정 2열에서는 마지막 줄에 고아 카드가 생겨 불균형 → `auto-fit + minmax(260px, 1fr)` 로
+ * 화면 폭에 따라 2~4열 자동 분배로 전환.
+ */
+/**
+ * 서비스 관리 링크 그리드 — 3열 × 2행 고정 (6개 카드).
+ */
 export const QLServiceGrid = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 16px;
 
-  @media (max-width: 768px) {
+  @media (max-width: 900px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  @media (max-width: 560px) {
     grid-template-columns: 1fr;
   }
 `;

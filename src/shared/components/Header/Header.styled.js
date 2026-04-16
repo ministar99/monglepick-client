@@ -12,18 +12,41 @@ import { gradientText } from '../../styles/mixins';
 import { media } from '../../styles/media';
 import { topBarSlide } from '../../styles/animations';
 
-/** 헤더 — 상단 고정, 반투명 배경 + 블러 + 하단 그라데이션 보더 */
+/**
+ * 헤더 — 상단 고정, 반투명 배경 + 블러 + 하단 그라데이션 보더.
+ *
+ * ⚠️ background-color / backdrop-filter 를 ::before 의사 요소로 분리.
+ * CSS 스펙상 backdrop-filter 가 요소에 직접 있으면 자식의 position: fixed 에
+ * 대한 containing block 을 생성하여, 모바일 햄버거 메뉴(Nav) 의 fixed 포지셔닝이
+ * 뷰포트 대신 64px 헤더 기준이 되어 메뉴 오버레이가 보이지 않는 버그 발생.
+ * ::before 로 분리하면 Nav 는 HeaderWrapper 의 자식이지 ::before 의 자식이
+ * 아니므로, position: fixed 가 정상적으로 뷰포트 기준으로 동작한다.
+ */
 export const HeaderWrapper = styled.header`
   position: sticky;
   top: 0;
   z-index: ${({ theme }) => theme.zIndex.sticky};
   width: 100%;
   height: ${({ theme }) => theme.layout.headerHeight};
-  background-color: ${({ theme }) => theme.header.bg};
-  backdrop-filter: blur(20px) saturate(1.8);
-  -webkit-backdrop-filter: blur(20px) saturate(1.8);
   border-bottom: none;
-  transition: backdrop-filter ${({ theme }) => theme.transitions.base};
+
+  /*
+   * 반투명 배경 + 블러 — ::before 의사 요소로 분리.
+   * z-index: -1 로 HeaderWrapper 스태킹 컨텍스트 내에서 가장 뒤에 배치하되,
+   * 부모 배경(transparent) 위에 그려지므로 블러 효과는 정상 동작.
+   */
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: ${({ theme }) => theme.header.bg};
+    backdrop-filter: blur(20px) saturate(1.8);
+    -webkit-backdrop-filter: blur(20px) saturate(1.8);
+    z-index: -1;
+  }
 
   /* 하단 그라데이션 라인 (1px) */
   &::after {
