@@ -154,6 +154,11 @@ export const COMMUNITY_ENDPOINTS = {
    * 응답: { liked: boolean, likeCount: number }
    */
   COMMENT_LIKE: (postId, commentId) => `${API_VERSION}/posts/${postId}/comments/${commentId}/like`,
+  /**
+   * 게시글 신고 - POST (postId 파라미터 필요, JWT 필요)
+   * 바디: { reason, detail? }
+   */
+  POST_REPORT: (postId) => `${API_VERSION}/posts/${postId}/report`,
   /** 플레이리스트 공유 피드 - GET (PLAYLIST_SHARE 카테고리만, 비로그인 허용) */
   SHARED_PLAYLISTS: `${API_VERSION}/posts/shared-playlists`,
   /**

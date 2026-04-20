@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { getPostDetail, deletePost, togglePostLike } from '../api/communityApi';
+import { getPostDetail, deletePost, togglePostLike, reportPost } from '../api/communityApi';
 import { formatRelativeTime } from '../../../shared/utils/formatters';
 import Loading from '../../../shared/components/Loading/Loading';
 import CommentSection from '../components/CommentSection';
+import ReportModal from '../components/ReportModal';
 import useAuthStore from '../../../shared/stores/useAuthStore';
 import * as S from './PostDetailPage.styled';
 
@@ -27,6 +28,7 @@ export default function PostDetailPage() {
   const [liked, setLiked] = useState(false);
   const [likeCount, setLikeCount] = useState(0);
   const [isLiking, setIsLiking] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -93,6 +95,21 @@ export default function PostDetailPage() {
 
   const isOwner = user && post && user.id === post.authorId;
 
+  const handleReport = async ({ reason, detail }) => {
+    try {
+      await reportPost(postId, { reason, detail });
+      alert('신고가 접수되었습니다. 검토 후 조치하겠습니다.');
+    } catch (err) {
+      const status = err?.response?.status;
+      if (status === 409) {
+        alert('이미 신고한 게시글입니다.');
+      } else {
+        alert('신고 접수에 실패했습니다. 다시 시도해주세요.');
+      }
+      throw err;
+    }
+  };
+
   if (isLoading) {
     return (
       <S.PageWrapper>
@@ -128,6 +145,11 @@ export default function PostDetailPage() {
               </S.CategoryBadge>
             )}
             <S.Time>{formatRelativeTime(post.createdAt)}</S.Time>
+            {user && !isOwner && (
+              <S.ReportButton onClick={() => setReportOpen(true)}>
+                신고
+              </S.ReportButton>
+            )}
             {isOwner && (
               <S.DeleteButton onClick={handleDelete} disabled={isDeleting}>
                 {isDeleting ? '삭제 중...' : '삭제'}
@@ -173,6 +195,12 @@ export default function PostDetailPage() {
         {/* 댓글 */}
         <CommentSection postId={postId} />
       </S.PageInner>
+
+      <ReportModal
+        isOpen={reportOpen}
+        onClose={() => setReportOpen(false)}
+        onSubmit={handleReport}
+      />
     </S.PageWrapper>
   );
 }

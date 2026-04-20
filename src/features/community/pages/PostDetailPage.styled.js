@@ -129,8 +129,24 @@ export const Status = styled.div`
   font-size: ${({ theme }) => theme.typography.textSm};
 `;
 
-export const DeleteButton = styled.button`
+export const ReportButton = styled.button`
   margin-left: auto;
+  padding: 6px 14px;
+  background: none;
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  color: ${({ theme }) => theme.colors.textMuted};
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    border-color: #e53e3e;
+    color: #e53e3e;
+  }
+`;
+
+export const DeleteButton = styled.button`
   padding: 6px 14px;
   background: none;
   border: 1px solid #e53e3e;

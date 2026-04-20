@@ -71,6 +71,10 @@ export async function togglePostLike(postId) {
   return api.post(COMMUNITY_ENDPOINTS.POST_LIKE(postId));
 }
 
+export async function reportPost(postId, { reason, detail = '' }) {
+  return api.post(COMMUNITY_ENDPOINTS.POST_REPORT(postId), { reason, detail });
+}
+
 export async function getSharedPlaylists({ page = 1, size = 15 } = {}) {
   const data = await api.get(COMMUNITY_ENDPOINTS.SHARED_PLAYLISTS, {
     params: { page: Math.max(0, page - 1), size },
