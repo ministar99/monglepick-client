@@ -87,6 +87,8 @@ export const MOVIE_ENDPOINTS = {
  * recommend(FastAPI)의 Redis 하이브리드 캐시 구현을 직접 호출한다.
  */
 export const RECOMMEND_MOVIE_ENDPOINTS = {
+  /** 영화 상세 조회 - GET (공개) */
+  DETAIL: (id) => `${API_V2_VERSION}/search/movies/${id}`,
   /** 영화 좋아요 토글 - POST (id 파라미터 필요, JWT 필요) */
   LIKE: (id) => `${API_V2_VERSION}/movies/${id}/like`,
   /** 내 영화 좋아요 상태 조회 - GET (id 파라미터 필요, JWT 필요) */
@@ -450,6 +452,25 @@ export const WORLDCUP_ENDPOINTS = {
   RESULT: (gameId) => `${API_VERSION}/worldcup/result/${gameId}`,
   /** 최근 결과 목록 - GET (query: page, size) */
   HISTORY: `${API_VERSION}/worldcup/history`,
+};
+
+/**
+ * Recommend 온보딩 월드컵 엔드포인트.
+ * recommend(FastAPI) 런타임 월드컵 플로우를 처리한다.
+ */
+export const RECOMMEND_WORLDCUP_ENDPOINTS = {
+  /** 커스텀 빌더 장르 목록 - GET */
+  GENRES: `${API_VERSION}/onboarding/worldcup/genres`,
+  /** 카테고리 목록 - GET */
+  CATEGORIES: `${API_VERSION}/onboarding/worldcup/categories`,
+  /** 시작 가능 라운드 계산 - POST */
+  OPTIONS: `${API_VERSION}/onboarding/worldcup/options`,
+  /** 대진표 시작 - POST */
+  START: `${API_VERSION}/onboarding/worldcup/start`,
+  /** 라운드 결과 제출 - POST */
+  SUBMIT: `${API_VERSION}/onboarding/worldcup`,
+  /** 완료 결과 조회 - GET */
+  RESULT: `${API_VERSION}/onboarding/worldcup/result`,
 };
 
 /**
