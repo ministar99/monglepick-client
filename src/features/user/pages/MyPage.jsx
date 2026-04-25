@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import useAuthStore from '../../../shared/stores/useAuthStore';
 /* 라우팅 재설계 PR-3 (2026-04-23) — 탭·모달 상태 URL 동기화 공통 훅 */
 import useTabParam from '../../../shared/hooks/useTabParam';
@@ -705,8 +705,12 @@ function FavoriteMovieModal({ initialMovies = [], onClose, onSave }) {
 /* ── 마이페이지 ── */
 export default function MyPagePage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { showAlert } = useModal();
   const onboardingMission = location.state?.onboardingMission || null;
+  /* 중첩 프로퍼티를 변수로 추출 — useCallback/useEffect 의존성 배열에 안전하게 사용 */
+  const locationReturnTo = location.state?.returnTo ?? null;
+  const locationActiveTab = location.state?.activeTab ?? null;
 
   /*
    * 2026-04-23 라우팅 재설계 PR-3:
@@ -798,7 +802,7 @@ export default function MyPagePage() {
     [favoriteMovieIds, savedFavoriteMovieIds],
   );
   const shouldShowOnboardingReturn = useMemo(() => {
-    if (activeTab !== 'preferences' || location.state?.returnTo !== ROUTES.ONBOARDING) {
+    if (activeTab !== 'preferences' || locationReturnTo !== ROUTES.ONBOARDING) {
       return false;
     }
 
@@ -813,7 +817,7 @@ export default function MyPagePage() {
     return savedFavoriteGenreIds.length > 0 || savedFavoriteMovieIds.length > 0;
   }, [
     activeTab,
-    location.state?.returnTo,
+    locationReturnTo,
     onboardingMission,
     savedFavoriteGenreIds.length,
     savedFavoriteMovieIds.length,
@@ -913,10 +917,10 @@ export default function MyPagePage() {
 
   /* 마운트 시 착용 아이템 로드 — 탭 전환과 무관하게 항상 헤더에 반영 */
   useEffect(() => {
-    if (location.state?.activeTab && location.state.activeTab !== activeTab) {
-      setActiveTab(location.state.activeTab);
+    if (locationActiveTab && locationActiveTab !== activeTab) {
+      setActiveTab(locationActiveTab);
     }
-  }, [activeTab, location.state?.activeTab]);
+  }, [activeTab, locationActiveTab, setActiveTab]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -1148,11 +1152,11 @@ export default function MyPagePage() {
          * returnTo / onboardingMission 은 별개 플로우라 state 에 그대로 보존한다.
          */
         backTo: `${ROUTES.ACCOUNT_PROFILE}?tab=preferences`,
-        returnTo: location.state?.returnTo,
+        returnTo: locationReturnTo,
         onboardingMission,
       },
     });
-  }, [location.state?.returnTo, navigate, onboardingMission]);
+  }, [locationReturnTo, navigate, onboardingMission]);
 
   const handleFavoriteDragStart = useCallback((movieId) => {
     setDraggedFavoriteMovieId(movieId);

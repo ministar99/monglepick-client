@@ -64,7 +64,7 @@ export default function PostForm({ onSubmit, initialData, isSubmitting = false, 
       if (parsed.title?.trim() || parsed.content?.trim()) {
         setShowBanner(true);
       }
-    } catch {}
+    } catch { /* localStorage 접근 불가 환경 — 무시 */ }
   }, [isEditMode]);
 
   // 3초 디바운스 자동 저장
@@ -84,7 +84,7 @@ export default function PostForm({ onSubmit, initialData, isSubmitting = false, 
         );
         setSavedAt(new Date());
         setDraftStatus('saved');
-      } catch {}
+      } catch { /* localStorage 저장 실패 — 무시 */ }
       idleTimerRef.current = setTimeout(() => setDraftStatus('idle'), 2000);
     }, 3000);
 
@@ -103,7 +103,7 @@ export default function PostForm({ onSubmit, initialData, isSubmitting = false, 
       if (parsed.content  !== undefined) setContent(parsed.content);
       if (parsed.category !== undefined) setCategory(parsed.category);
       if (parsed.savedAt) setSavedAt(new Date(parsed.savedAt));
-    } catch {}
+    } catch { /* localStorage 접근 불가 환경 — 무시 */ }
     setShowBanner(false);
   };
 
