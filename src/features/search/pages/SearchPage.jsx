@@ -187,16 +187,12 @@ function normalizeAdvancedFilters({
   yearTo,
   ratingMin,
   ratingMax,
-  popularityMin,
-  popularityMax,
 }) {
   return {
     yearFrom: parseOptionalIntegerFilter(yearFrom),
     yearTo: parseOptionalIntegerFilter(yearTo),
     ratingMin: parseOptionalFloatFilter(ratingMin),
     ratingMax: parseOptionalFloatFilter(ratingMax),
-    popularityMin: parseOptionalFloatFilter(popularityMin),
-    popularityMax: parseOptionalFloatFilter(popularityMax),
   };
 }
 
@@ -221,14 +217,6 @@ function getAdvancedFilterError(filters) {
     return '평점 범위를 확인해주세요.';
   }
 
-  if (
-    filters.popularityMin !== null
-    && filters.popularityMax !== null
-    && filters.popularityMin > filters.popularityMax
-  ) {
-    return '인기도 범위를 확인해주세요.';
-  }
-
   return '';
 }
 
@@ -242,8 +230,6 @@ function buildSearchCacheKey({
   yearTo,
   ratingMin,
   ratingMax,
-  popularityMin,
-  popularityMax,
 }) {
   return JSON.stringify({
     query: query || '',
@@ -255,8 +241,6 @@ function buildSearchCacheKey({
     yearTo: yearTo ?? null,
     ratingMin: ratingMin ?? null,
     ratingMax: ratingMax ?? null,
-    popularityMin: popularityMin ?? null,
-    popularityMax: popularityMax ?? null,
   });
 }
 
@@ -270,8 +254,6 @@ function buildSearchSignature({
   yearTo,
   ratingMin,
   ratingMax,
-  popularityMin,
-  popularityMax,
 }) {
   return JSON.stringify({
     query: query || '',
@@ -283,8 +265,6 @@ function buildSearchSignature({
     yearTo: yearTo ?? null,
     ratingMin: ratingMin ?? null,
     ratingMax: ratingMax ?? null,
-    popularityMin: popularityMin ?? null,
-    popularityMax: popularityMax ?? null,
   });
 }
 
@@ -298,8 +278,6 @@ function buildSearchParams({
   yearTo,
   ratingMin,
   ratingMax,
-  popularityMin,
-  popularityMax,
 }) {
   const params = new URLSearchParams();
 
@@ -335,14 +313,6 @@ function buildSearchParams({
 
   if (ratingMax !== null && ratingMax !== undefined) {
     params.set('ratingMax', String(ratingMax));
-  }
-
-  if (popularityMin !== null && popularityMin !== undefined) {
-    params.set('popularityMin', String(popularityMin));
-  }
-
-  if (popularityMax !== null && popularityMax !== undefined) {
-    params.set('popularityMax', String(popularityMax));
   }
 
   return params;
@@ -401,8 +371,6 @@ export default function SearchPage() {
   const [yearToInput, setYearToInput] = useState(searchParams.get('yearTo') || '');
   const [ratingMinInput, setRatingMinInput] = useState(searchParams.get('ratingMin') || '');
   const [ratingMaxInput, setRatingMaxInput] = useState(searchParams.get('ratingMax') || '');
-  const [popularityMinInput, setPopularityMinInput] = useState(searchParams.get('popularityMin') || '');
-  const [popularityMaxInput, setPopularityMaxInput] = useState(searchParams.get('popularityMax') || '');
   const [searchGenreOptions, setSearchGenreOptions] = useState([]);
   const [isSearchGenreOptionsLoading, setIsSearchGenreOptionsLoading] = useState(false);
   const [selectedSearchGenres, setSelectedSearchGenres] = useState(initialSelectedGenres);
@@ -445,8 +413,6 @@ export default function SearchPage() {
     yearTo: yearToInput,
     ratingMin: ratingMinInput,
     ratingMax: ratingMaxInput,
-    popularityMin: popularityMinInput,
-    popularityMax: popularityMaxInput,
   });
   const advancedFilterError = getAdvancedFilterError(normalizedAdvancedFilters);
   const hasAdvancedFilters = hasActiveAdvancedFilters(normalizedAdvancedFilters);
@@ -491,8 +457,6 @@ export default function SearchPage() {
     setYearToInput(toFilterInputValue(restoredContext?.yearTo));
     setRatingMinInput(toFilterInputValue(restoredContext?.ratingMin));
     setRatingMaxInput(toFilterInputValue(restoredContext?.ratingMax));
-    setPopularityMinInput(toFilterInputValue(restoredContext?.popularityMin));
-    setPopularityMaxInput(toFilterInputValue(restoredContext?.popularityMax));
     setSelectedSearchGenres(restoredDiscoveryGenres);
     setIsDetailGenresExpanded(hasSelectedDetailGenres(restoredDiscoveryGenres));
     setMovies(snapshot.movies || []);
@@ -524,8 +488,6 @@ export default function SearchPage() {
     yearToValue = yearToInput,
     ratingMinValue = ratingMinInput,
     ratingMaxValue = ratingMaxInput,
-    popularityMinValue = popularityMinInput,
-    popularityMaxValue = popularityMaxInput,
   } = {}) => {
     const queryText = String(searchQuery || '').trim();
     const effectiveSearchType = currentSearchType || 'all';
@@ -537,8 +499,6 @@ export default function SearchPage() {
       yearTo: yearToValue,
       ratingMin: ratingMinValue,
       ratingMax: ratingMaxValue,
-      popularityMin: popularityMinValue,
-      popularityMax: popularityMaxValue,
     });
     const filterError = getAdvancedFilterError(normalizedFilters);
     const hasSearchFilters = hasActiveAdvancedFilters(normalizedFilters);
@@ -587,8 +547,6 @@ export default function SearchPage() {
         yearTo: normalizedFilters.yearTo,
         ratingMin: normalizedFilters.ratingMin,
         ratingMax: normalizedFilters.ratingMax,
-        popularityMin: normalizedFilters.popularityMin,
-        popularityMax: normalizedFilters.popularityMax,
       });
       setSearchParams(params, { replace: true });
     }
@@ -604,8 +562,6 @@ export default function SearchPage() {
         yearTo: normalizedFilters.yearTo,
         ratingMin: normalizedFilters.ratingMin,
         ratingMax: normalizedFilters.ratingMax,
-        popularityMin: normalizedFilters.popularityMin,
-        popularityMax: normalizedFilters.popularityMax,
         sort: effectiveSort,
         page,
         size: PAGE_SIZE,
@@ -623,8 +579,6 @@ export default function SearchPage() {
         yearTo: normalizedFilters.yearTo,
         ratingMin: normalizedFilters.ratingMin,
         ratingMax: normalizedFilters.ratingMax,
-        popularityMin: normalizedFilters.popularityMin,
-        popularityMax: normalizedFilters.popularityMax,
       });
 
       setMovies((prev) => (append ? [...prev, ...nextMovies] : nextMovies));
@@ -647,8 +601,6 @@ export default function SearchPage() {
         yearTo: normalizedFilters.yearTo,
         ratingMin: normalizedFilters.ratingMin,
         ratingMax: normalizedFilters.ratingMax,
-        popularityMin: normalizedFilters.popularityMin,
-        popularityMax: normalizedFilters.popularityMax,
       });
 
       /* Phase 2: 검색 실행 이벤트 (첫 페이지만 기록) */
@@ -682,8 +634,6 @@ export default function SearchPage() {
     }
   }, [
     genre,
-    popularityMaxInput,
-    popularityMinInput,
     query,
     ratingMaxInput,
     ratingMinInput,
@@ -713,15 +663,11 @@ export default function SearchPage() {
     const urlYearTo = searchParams.get('yearTo') || '';
     const urlRatingMin = searchParams.get('ratingMin') || '';
     const urlRatingMax = searchParams.get('ratingMax') || '';
-    const urlPopularityMin = searchParams.get('popularityMin') || '';
-    const urlPopularityMax = searchParams.get('popularityMax') || '';
     const normalizedUrlFilters = normalizeAdvancedFilters({
       yearFrom: urlYearFrom,
       yearTo: urlYearTo,
       ratingMin: urlRatingMin,
       ratingMax: urlRatingMax,
-      popularityMin: urlPopularityMin,
-      popularityMax: urlPopularityMax,
     });
     const hasUrlAdvancedFilters = hasActiveAdvancedFilters(normalizedUrlFilters);
 
@@ -733,8 +679,6 @@ export default function SearchPage() {
     setYearToInput(urlYearTo);
     setRatingMinInput(urlRatingMin);
     setRatingMaxInput(urlRatingMax);
-    setPopularityMinInput(urlPopularityMin);
-    setPopularityMaxInput(urlPopularityMax);
     setSelectedSearchGenres(urlSelectedGenres);
     setIsDetailGenresExpanded(hasSelectedDetailGenres(urlSelectedGenres));
 
@@ -750,8 +694,6 @@ export default function SearchPage() {
         yearTo: normalizedUrlFilters.yearTo,
         ratingMin: normalizedUrlFilters.ratingMin,
         ratingMax: normalizedUrlFilters.ratingMax,
-        popularityMin: normalizedUrlFilters.popularityMin,
-        popularityMax: normalizedUrlFilters.popularityMax,
       });
       const cachedSearch = readSearchCache();
 
@@ -772,8 +714,6 @@ export default function SearchPage() {
         yearToValue: urlYearTo,
         ratingMinValue: urlRatingMin,
         ratingMaxValue: urlRatingMax,
-        popularityMinValue: urlPopularityMin,
-        popularityMaxValue: urlPopularityMax,
       });
     }
   }, [executeSearch, restoreSearchSnapshot, searchParams]);
@@ -965,8 +905,6 @@ export default function SearchPage() {
       yearTo: lastSearchContext?.yearTo ?? null,
       ratingMin: lastSearchContext?.ratingMin ?? null,
       ratingMax: lastSearchContext?.ratingMax ?? null,
-      popularityMin: lastSearchContext?.popularityMin ?? null,
-      popularityMax: lastSearchContext?.popularityMax ?? null,
     });
 
     if (!hasSearched || (!hasCachedQuery && !hasCachedGenres && !hasCachedAdvancedFilters)) {
@@ -984,8 +922,6 @@ export default function SearchPage() {
         yearTo: lastSearchContext.yearTo,
         ratingMin: lastSearchContext.ratingMin,
         ratingMax: lastSearchContext.ratingMax,
-        popularityMin: lastSearchContext.popularityMin,
-        popularityMax: lastSearchContext.popularityMax,
       }),
       snapshot: {
         movies,
@@ -1330,9 +1266,6 @@ export default function SearchPage() {
     const restoredYearTo = toFilterInputValue(historyFilters.year_to);
     const restoredRatingMin = toFilterInputValue(historyFilters.rating_min);
     const restoredRatingMax = toFilterInputValue(historyFilters.rating_max);
-    const restoredPopularityMin = toFilterInputValue(historyFilters.popularity_min);
-    const restoredPopularityMax = toFilterInputValue(historyFilters.popularity_max);
-
     if (isGenreHistory) {
       setQuery('');
       setSearchType(restoredSearchType);
@@ -1342,8 +1275,6 @@ export default function SearchPage() {
       setYearToInput(restoredYearTo);
       setRatingMinInput(restoredRatingMin);
       setRatingMaxInput(restoredRatingMax);
-      setPopularityMinInput(restoredPopularityMin);
-      setPopularityMaxInput(restoredPopularityMax);
       setSelectedSearchGenres(historyGenres);
       setIsDetailGenresExpanded(hasSelectedDetailGenres(historyGenres));
       setIsRecentModalOpen(false);
@@ -1359,8 +1290,6 @@ export default function SearchPage() {
         yearToValue: restoredYearTo,
         ratingMinValue: restoredRatingMin,
         ratingMaxValue: restoredRatingMax,
-        popularityMinValue: restoredPopularityMin,
-        popularityMaxValue: restoredPopularityMax,
       });
       return;
     }
@@ -1373,8 +1302,6 @@ export default function SearchPage() {
     setYearToInput(restoredYearTo);
     setRatingMinInput(restoredRatingMin);
     setRatingMaxInput(restoredRatingMax);
-    setPopularityMinInput(restoredPopularityMin);
-    setPopularityMaxInput(restoredPopularityMax);
     setSelectedSearchGenres([]);
     setIsDetailGenresExpanded(false);
     setIsRecentModalOpen(false);
@@ -1390,8 +1317,6 @@ export default function SearchPage() {
       yearToValue: restoredYearTo,
       ratingMinValue: restoredRatingMin,
       ratingMaxValue: restoredRatingMax,
-      popularityMinValue: restoredPopularityMin,
-      popularityMaxValue: restoredPopularityMax,
     });
   }, [executeSearch]);
 
@@ -1463,8 +1388,6 @@ export default function SearchPage() {
     setYearToInput('');
     setRatingMinInput('');
     setRatingMaxInput('');
-    setPopularityMinInput('');
-    setPopularityMaxInput('');
 
     if (!hasAdvancedFilters && !hasSearched) {
       return;
@@ -1482,8 +1405,6 @@ export default function SearchPage() {
       yearToValue: '',
       ratingMinValue: '',
       ratingMaxValue: '',
-      popularityMinValue: '',
-      popularityMaxValue: '',
     });
   }, [
     executeSearch,
@@ -1523,8 +1444,6 @@ export default function SearchPage() {
       yearToValue: yearToInput,
       ratingMinValue: ratingMinInput,
       ratingMaxValue: ratingMaxInput,
-      popularityMinValue: popularityMinInput,
-      popularityMaxValue: popularityMaxInput,
     });
   };
 
@@ -1554,8 +1473,6 @@ export default function SearchPage() {
       yearToValue: lastSearchContext?.yearTo ?? null,
       ratingMinValue: lastSearchContext?.ratingMin ?? null,
       ratingMaxValue: lastSearchContext?.ratingMax ?? null,
-      popularityMinValue: lastSearchContext?.popularityMin ?? null,
-      popularityMaxValue: lastSearchContext?.popularityMax ?? null,
     });
   }, [
     currentPage,
@@ -1574,8 +1491,6 @@ export default function SearchPage() {
     lastSearchContext?.yearTo,
     lastSearchContext?.ratingMin,
     lastSearchContext?.ratingMax,
-    lastSearchContext?.popularityMin,
-    lastSearchContext?.popularityMax,
     query,
     selectedSearchGenres,
     searchType,
@@ -1627,8 +1542,6 @@ export default function SearchPage() {
           year_to: lastSearchContext.yearTo ?? null,
           rating_min: lastSearchContext.ratingMin ?? null,
           rating_max: lastSearchContext.ratingMax ?? null,
-          popularity_min: lastSearchContext.popularityMin ?? null,
-          popularity_max: lastSearchContext.popularityMax ?? null,
         },
       });
     } catch {
@@ -1869,7 +1782,7 @@ export default function SearchPage() {
                 <S.AdvancedFilterHeader>
                   <S.AdvancedFilterTitle>상세 필터</S.AdvancedFilterTitle>
                   <S.AdvancedFilterDescription>
-                    개봉 연도, 평점, 인기도 범위를 지정하면 해당 조건으로 다시 검색합니다.
+                    개봉 연도와 평점 범위를 지정하면 해당 조건으로 다시 검색합니다.
                   </S.AdvancedFilterDescription>
                 </S.AdvancedFilterHeader>
 
@@ -1918,31 +1831,6 @@ export default function SearchPage() {
                         placeholder="최대 평점"
                         value={ratingMaxInput}
                         onChange={(e) => setRatingMaxInput(e.target.value)}
-                      />
-                    </S.AdvancedFilterRange>
-                  </S.AdvancedFilterGroup>
-
-                  <S.AdvancedFilterGroup>
-                    <S.AdvancedFilterLabel htmlFor="search-popularity-min">인기도</S.AdvancedFilterLabel>
-                    <S.AdvancedFilterRange>
-                      <S.AdvancedFilterInput
-                        id="search-popularity-min"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.1"
-                        placeholder="최소 인기도"
-                        value={popularityMinInput}
-                        onChange={(e) => setPopularityMinInput(e.target.value)}
-                      />
-                      <S.AdvancedFilterDivider aria-hidden="true">-</S.AdvancedFilterDivider>
-                      <S.AdvancedFilterInput
-                        id="search-popularity-max"
-                        type="number"
-                        inputMode="decimal"
-                        step="0.1"
-                        placeholder="최대 인기도"
-                        value={popularityMaxInput}
-                        onChange={(e) => setPopularityMaxInput(e.target.value)}
                       />
                     </S.AdvancedFilterRange>
                   </S.AdvancedFilterGroup>
