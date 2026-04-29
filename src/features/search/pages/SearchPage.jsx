@@ -18,13 +18,23 @@ import {
   deleteAllRecentSearches,
   deleteRecentSearchKeyword,
   getAutocompleteSuggestions,
+  getPopularMovies,
   getRecentSearches,
+  getRelatedMovies,
   getSearchGenres,
   logSearchResultClick,
   searchMovies,
 } from '../../movie/api/movieApi';
+import { getRecommendations } from '../../recommendation/api/recommendationApi';
+import {
+  getFavoriteGenres,
+  getFavoriteMovies,
+  getMyReviews,
+  getWishlist,
+} from '../../user/api/userApi';
 /* Phase 2: 사용자 행동 이벤트 추적 */
 import { trackEvent } from '../../../shared/utils/eventTracker';
+import { buildPath, ROUTES } from '../../../shared/constants/routes';
 import useAuthStore from '../../../shared/stores/useAuthStore';
 /* 영화 목록 컴포넌트 — shared/components에서 가져옴 */
 import MovieList from '../../../shared/components/MovieList/MovieList';
@@ -45,6 +55,15 @@ const MIN_RELEASE_YEAR = 1900;
 const MAX_RELEASE_YEAR = 2030;
 const MIN_RATING = 0.5;
 const MAX_RATING = 10;
+const TMDB_POSTER_BASE = 'https://image.tmdb.org/t/p/w500';
+const PERSONALIZED_TOP_PICK_LIMIT = 10;
+const PERSONALIZED_GENRE_SECTION_COUNT = 5;
+const PERSONALIZED_GENRE_SECTION_LIMIT = 20;
+const PERSONALIZED_CHAT_SECTION_LIMIT = 20;
+const PERSONALIZED_WISHLIST_SECTION_LIMIT = 20;
+const PERSONALIZED_SIMILAR_TASTE_LIMIT = 40;
+const PERSONALIZED_REVIEW_SECTION_COUNT = 5;
+const PERSONALIZED_REVIEW_SECTION_LIMIT = 25;
 
 /** 장르 필터 옵션 */
 const GENRE_FILTERS = [
@@ -92,6 +111,17 @@ function createInitialRecentPagination() {
     limit: RECENT_HISTORY_PAGE_SIZE,
     has_more: false,
     next_offset: null,
+  };
+}
+
+function createInitialPersonalizedSections() {
+  return {
+    topPicks: [],
+    genreSections: [],
+    chatRecommendationMovies: [],
+    wishlistMovies: [],
+    similarTasteMovies: [],
+    reviewSections: [],
   };
 }
 
@@ -184,6 +214,223 @@ function parseOptionalFloatFilter(value) {
 
 function clampNumber(value, min, max) {
   return Math.min(max, Math.max(min, value));
+}
+
+function extractPersonalizedMovieSource(entry) {
+  if (entry?.movie && typeof entry.movie === 'object') {
+    return entry.movie;
+  }
+
+  return entry;
+}
+
+function resolvePersonalizedMovieId(entry) {
+  const movie = extractPersonalizedMovieSource(entry);
+
+  return (
+    movie?.movie_id
+    || movie?.movieId
+    || movie?.id
+    || entry?.movie_id
+    || entry?.movieId
+    || entry?.id
+    || null
+  );
+}
+
+function resolvePersonalizedPosterSrc(entry) {
+  const movie = extractPersonalizedMovieSource(entry);
+  const rawPoster = (
+    movie?.posterSrc
+    || movie?.poster_path
+    || movie?.posterPath
+    || movie?.posterUrl
+    || movie?.poster_url
+    || entry?.posterSrc
+    || entry?.posterUrl
+    || entry?.poster_url
+    || null
+  );
+
+  if (!rawPoster || typeof rawPoster !== 'string') {
+    return null;
+  }
+
+  if (rawPoster.startsWith('http://') || rawPoster.startsWith('https://')) {
+    return rawPoster;
+  }
+
+  if (rawPoster.startsWith('/')) {
+    return `${TMDB_POSTER_BASE}${rawPoster}`;
+  }
+
+  return rawPoster;
+}
+
+function resolvePersonalizedMovieTitle(entry) {
+  const movie = extractPersonalizedMovieSource(entry);
+
+  return (
+    movie?.title
+    || movie?.title_ko
+    || movie?.original_title
+    || entry?.movieTitle
+    || entry?.title
+    || '제목 없음'
+  );
+}
+
+function resolvePersonalizedMovieDirector(entry) {
+  const movie = extractPersonalizedMovieSource(entry);
+  const directDirector = (
+    movie?.director
+    || movie?.directorName
+    || movie?.director_name
+    || entry?.director
+    || entry?.directorName
+    || null
+  );
+
+  if (typeof directDirector === 'string' && directDirector.trim()) {
+    return directDirector.trim();
+  }
+
+  if (Array.isArray(movie?.directors)) {
+    const names = movie.directors
+      .map((director) => (typeof director === 'string' ? director : director?.name))
+      .map((name) => String(name || '').trim())
+      .filter(Boolean)
+      .slice(0, 2);
+
+    if (names.length > 0) {
+      return names.join(', ');
+    }
+  }
+
+  return null;
+}
+
+function resolvePersonalizedReleaseYear(entry) {
+  const movie = extractPersonalizedMovieSource(entry);
+  const explicitYear = (
+    movie?.releaseYear
+    ?? movie?.release_year
+    ?? entry?.releaseYear
+    ?? entry?.release_year
+    ?? null
+  );
+
+  if (explicitYear !== null && explicitYear !== undefined && explicitYear !== '') {
+    const parsedYear = Number(explicitYear);
+    if (Number.isFinite(parsedYear)) {
+      return parsedYear;
+    }
+  }
+
+  const releaseDate = movie?.release_date || entry?.release_date || null;
+  if (typeof releaseDate === 'string' && releaseDate.length >= 4) {
+    const parsedYear = Number(releaseDate.slice(0, 4));
+    if (Number.isFinite(parsedYear)) {
+      return parsedYear;
+    }
+  }
+
+  return null;
+}
+
+function parsePersonalizedGenres(genres) {
+  if (Array.isArray(genres)) {
+    return [...new Set(
+      genres
+        .map((genre) => (typeof genre === 'string' ? genre : genre?.name))
+        .map((genreName) => String(genreName || '').trim())
+        .filter(Boolean)
+    )];
+  }
+
+  if (typeof genres !== 'string') {
+    return [];
+  }
+
+  try {
+    const parsed = JSON.parse(genres);
+    if (Array.isArray(parsed)) {
+      return parsePersonalizedGenres(parsed);
+    }
+  } catch {
+    // JSON 형식이 아니면 CSV 문자열로 처리한다.
+  }
+
+  return [...new Set(
+    genres
+      .split(',')
+      .map((genre) => genre.trim())
+      .filter(Boolean)
+  )];
+}
+
+function normalizePersonalizedPreviewMovie(entry) {
+  const movie = extractPersonalizedMovieSource(entry);
+  const id = resolvePersonalizedMovieId(entry);
+
+  if (!id || !movie) {
+    return null;
+  }
+
+  return {
+    id,
+    title: resolvePersonalizedMovieTitle(entry),
+    director: resolvePersonalizedMovieDirector(entry),
+    releaseYear: resolvePersonalizedReleaseYear(entry),
+    posterSrc: resolvePersonalizedPosterSrc(entry),
+    genres: parsePersonalizedGenres(movie?.genres || entry?.genres),
+  };
+}
+
+function normalizePersonalizedPreviewMovies(entries, limit) {
+  const normalizedMovies = [];
+  const seenMovieIds = new Set();
+
+  entries.forEach((entry) => {
+    const normalizedMovie = normalizePersonalizedPreviewMovie(entry);
+    if (!normalizedMovie) {
+      return;
+    }
+
+    const movieKey = String(normalizedMovie.id);
+    if (seenMovieIds.has(movieKey)) {
+      return;
+    }
+
+    seenMovieIds.add(movieKey);
+    normalizedMovies.push(normalizedMovie);
+  });
+
+  return Number.isFinite(limit) ? normalizedMovies.slice(0, limit) : normalizedMovies;
+}
+
+function mergePersonalizedMovieCollections(collections, limit) {
+  return normalizePersonalizedPreviewMovies(collections.flat(), limit);
+}
+
+function collectTopGenreNamesFromMovies(movies, limit, excludedGenreNames = []) {
+  const excludedSet = new Set(excludedGenreNames.map((genre) => String(genre || '').trim()));
+  const genreCounts = new Map();
+
+  movies.forEach((movie) => {
+    parsePersonalizedGenres(movie?.genres).forEach((genreName) => {
+      if (!genreName || excludedSet.has(genreName)) {
+        return;
+      }
+
+      genreCounts.set(genreName, (genreCounts.get(genreName) || 0) + 1);
+    });
+  });
+
+  return [...genreCounts.entries()]
+    .sort((left, right) => right[1] - left[1])
+    .slice(0, limit)
+    .map(([genreName]) => genreName);
 }
 
 function toFilterInputValue(value) {
@@ -422,9 +669,12 @@ export default function SearchPage() {
   const [searchDidYouMean, setSearchDidYouMean] = useState(null);
   const [relatedQueries, setRelatedQueries] = useState([]);
   const [searchSource, setSearchSource] = useState(null);
+  const [personalizedSections, setPersonalizedSections] = useState(createInitialPersonalizedSections);
+  const [isPersonalizedLoading, setIsPersonalizedLoading] = useState(false);
   const loadMoreRef = useRef(null);
   const autocompleteRef = useRef(null);
   const searchInputRef = useRef(null);
+  const currentUser = useAuthStore((state) => state.user);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated());
   const { primaryOptions: primarySearchGenreOptions, detailOptions: detailSearchGenreOptions } = (
     splitSearchGenreOptions(searchGenreOptions)
@@ -458,6 +708,9 @@ export default function SearchPage() {
   const filterSummaryText = filterSummaryParts.length > 0
     ? filterSummaryParts.join(' · ')
     : '필터 없이 전체 범위를 검색 중입니다.';
+  const personalizedNickname = currentUser?.nickname || currentUser?.name || '회원';
+  const personalizedTopSectionTitle = `${personalizedNickname}님 예상 픽 TOP 10`;
+  const wishlistMoreLink = `${ROUTES.ACCOUNT_PROFILE}?tab=wishlist`;
 
   const isAutocompleteSupportedSearchType = searchType === 'all' || searchType === 'title';
 
@@ -795,6 +1048,231 @@ export default function SearchPage() {
       isMounted = false;
     };
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadPersonalizedSections = async () => {
+      if (!isAuthenticated) {
+        setPersonalizedSections(createInitialPersonalizedSections());
+        setIsPersonalizedLoading(false);
+        return;
+      }
+
+      setIsPersonalizedLoading(true);
+
+      const [
+        favoriteGenresResult,
+        favoriteMoviesResult,
+        recommendationsResult,
+        wishlistResult,
+        reviewsResult,
+        popularMoviesResult,
+      ] = await Promise.allSettled([
+        getFavoriteGenres(),
+        getFavoriteMovies(),
+        getRecommendations({ page: 0, size: 60, status: 'ALL' }),
+        getWishlist({ page: 1, size: PERSONALIZED_WISHLIST_SECTION_LIMIT }),
+        getMyReviews({ page: 1, size: 60 }),
+        getPopularMovies(1, 60),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      const selectedFavoriteGenres = favoriteGenresResult.status === 'fulfilled'
+        ? (favoriteGenresResult.value?.selectedGenres || [])
+            .map((item) => item?.genre?.genreName)
+            .map((genreName) => String(genreName || '').trim())
+            .filter(Boolean)
+        : [];
+
+      const favoriteMovies = favoriteMoviesResult.status === 'fulfilled'
+        ? normalizePersonalizedPreviewMovies(
+          (favoriteMoviesResult.value?.favoriteMovies || [])
+            .map((item) => item?.movie)
+            .filter(Boolean),
+          12,
+        )
+        : [];
+
+      const recommendationItems = recommendationsResult.status === 'fulfilled'
+        ? (recommendationsResult.value?.content || [])
+        : [];
+
+      const chatRecommendationMovies = normalizePersonalizedPreviewMovies(
+        recommendationItems
+          .filter((item) => !item?.watched)
+          .map((item) => item?.movie || item),
+        PERSONALIZED_CHAT_SECTION_LIMIT,
+      );
+
+      const wishlistMovies = wishlistResult.status === 'fulfilled'
+        ? normalizePersonalizedPreviewMovies(
+          (wishlistResult.value?.wishlist || [])
+            .map((item) => item?.movie)
+            .filter(Boolean),
+          PERSONALIZED_WISHLIST_SECTION_LIMIT,
+        )
+        : [];
+
+      const reviews = reviewsResult.status === 'fulfilled'
+        ? (reviewsResult.value?.reviews || [])
+        : [];
+
+      const sortedReviews = [...reviews].sort((left, right) => {
+        const ratingGap = Number(right?.rating || 0) - Number(left?.rating || 0);
+        if (ratingGap !== 0) {
+          return ratingGap;
+        }
+
+        return new Date(right?.createdAt || 0).getTime() - new Date(left?.createdAt || 0).getTime();
+      });
+
+      const highRatedReviews = [...sortedReviews.filter((review) => Number(review?.rating || 0) >= 4), ...sortedReviews]
+        .filter((review, index, array) => {
+          if (!review?.movieId || !review?.movieTitle) {
+            return false;
+          }
+
+          return array.findIndex((candidate) => candidate?.movieId === review.movieId) === index;
+        })
+        .slice(0, PERSONALIZED_REVIEW_SECTION_COUNT);
+
+      const popularMovies = popularMoviesResult.status === 'fulfilled'
+        ? normalizePersonalizedPreviewMovies(popularMoviesResult.value?.movies || [], 60)
+        : [];
+
+      const filledGenreNames = [
+        ...selectedFavoriteGenres,
+        ...collectTopGenreNamesFromMovies(
+          [
+            ...favoriteMovies,
+            ...chatRecommendationMovies,
+            ...wishlistMovies,
+            ...popularMovies,
+          ],
+          PERSONALIZED_GENRE_SECTION_COUNT,
+          selectedFavoriteGenres,
+        ),
+      ].slice(0, PERSONALIZED_GENRE_SECTION_COUNT);
+
+      const [genreSectionResults, reviewSectionResults, similarTasteResults] = await Promise.all([
+        Promise.allSettled(
+          filledGenreNames.map(async (genreName) => {
+            const result = await searchMovies({
+              genres: [genreName],
+              sort: 'rating',
+              size: PERSONALIZED_GENRE_SECTION_LIMIT,
+            });
+
+            return {
+              key: `genre-${genreName}`,
+              title: `${genreName} 장르 예상 픽`,
+              movies: normalizePersonalizedPreviewMovies(
+                result?.movies || [],
+                PERSONALIZED_GENRE_SECTION_LIMIT,
+              ),
+            };
+          }),
+        ),
+        Promise.allSettled(
+          highRatedReviews.map(async (review) => {
+            const relatedMovies = await getRelatedMovies(review.movieId, {
+              limit: PERSONALIZED_REVIEW_SECTION_LIMIT,
+            });
+
+            return {
+              key: `review-${review.movieId}`,
+              title: `${review.movieTitle}에 높은 점수를 주셨어요`,
+              movies: normalizePersonalizedPreviewMovies(
+                relatedMovies,
+                PERSONALIZED_REVIEW_SECTION_LIMIT,
+              ),
+            };
+          }),
+        ),
+        Promise.allSettled(
+          normalizePersonalizedPreviewMovies(
+            [
+              ...favoriteMovies,
+              ...highRatedReviews.map((review) => ({
+                id: review.movieId,
+                title: review.movieTitle,
+              })),
+            ],
+            4,
+          ).map((seedMovie) => (
+            getRelatedMovies(seedMovie.id, {
+              limit: 15,
+            })
+          )),
+        ),
+      ]);
+
+      if (!isMounted) {
+        return;
+      }
+
+      const genreSections = genreSectionResults
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value)
+        .filter((section) => section.movies.length > 0);
+
+      const reviewSections = reviewSectionResults
+        .filter((result) => result.status === 'fulfilled')
+        .map((result) => result.value)
+        .filter((section) => section.movies.length > 0);
+
+      const similarTasteMovies = mergePersonalizedMovieCollections(
+        similarTasteResults
+          .filter((result) => result.status === 'fulfilled')
+          .map((result) => result.value),
+        PERSONALIZED_SIMILAR_TASTE_LIMIT,
+      );
+
+      const nextSimilarTasteMovies = similarTasteMovies.length > 0
+        ? similarTasteMovies
+        : popularMovies.slice(0, PERSONALIZED_SIMILAR_TASTE_LIMIT);
+
+      const nextTopPicks = mergePersonalizedMovieCollections(
+        [
+          chatRecommendationMovies,
+          wishlistMovies,
+          genreSections.flatMap((section) => section.movies),
+          reviewSections.flatMap((section) => section.movies),
+          nextSimilarTasteMovies,
+          popularMovies,
+        ],
+        PERSONALIZED_TOP_PICK_LIMIT,
+      );
+
+      setPersonalizedSections({
+        topPicks: nextTopPicks,
+        genreSections,
+        chatRecommendationMovies,
+        wishlistMovies,
+        similarTasteMovies: nextSimilarTasteMovies,
+        reviewSections,
+      });
+      setIsPersonalizedLoading(false);
+    };
+
+    loadPersonalizedSections()
+      .catch(() => {
+        if (!isMounted) {
+          return;
+        }
+
+        setPersonalizedSections(createInitialPersonalizedSections());
+        setIsPersonalizedLoading(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isAuthenticated]);
 
   /**
    * 검색창 아래에 노출할 최근 검색 기록 미리보기 5개를 불러온다.
@@ -1641,6 +2119,64 @@ export default function SearchPage() {
     }
   }, [lastSearchContext]);
 
+  const shouldShowPersonalizedRecommendations = isAuthenticated && !hasSearched && !isLoading;
+
+  const renderPersonalizedSection = ({
+    key,
+    title,
+    movies,
+    moreLink,
+    emptyMessage,
+  }) => (
+    <S.PersonalizedSection key={key}>
+      <S.PersonalizedSectionHeader>
+        <S.PersonalizedSectionTitle>{title}</S.PersonalizedSectionTitle>
+        {moreLink && (
+          <S.PersonalizedMoreLink to={moreLink}>
+            더보기
+          </S.PersonalizedMoreLink>
+        )}
+      </S.PersonalizedSectionHeader>
+
+      {movies.length > 0 ? (
+        <S.PersonalizedShelf>
+          {movies.map((movie) => (
+            <S.PersonalizedPosterCard
+              key={`${key}-${movie.id}`}
+              to={buildPath(ROUTES.MOVIE_DETAIL, { id: movie.id })}
+            >
+              <S.PersonalizedPosterFrame>
+                {movie.posterSrc ? (
+                  <S.PersonalizedPosterImage
+                    src={movie.posterSrc}
+                    alt={`${movie.title} 포스터`}
+                    loading="lazy"
+                  />
+                ) : (
+                  <S.PersonalizedPosterPlaceholder>
+                    <span>🎬</span>
+                  </S.PersonalizedPosterPlaceholder>
+                )}
+
+                <S.PersonalizedPosterOverlay>
+                  <S.PersonalizedPosterTitle>{movie.title}</S.PersonalizedPosterTitle>
+                  <S.PersonalizedPosterMeta>
+                    {movie.director || '감독 정보 없음'}
+                  </S.PersonalizedPosterMeta>
+                  <S.PersonalizedPosterMeta>
+                    {movie.releaseYear ? `${movie.releaseYear}년` : '개봉 연도 미상'}
+                  </S.PersonalizedPosterMeta>
+                </S.PersonalizedPosterOverlay>
+              </S.PersonalizedPosterFrame>
+            </S.PersonalizedPosterCard>
+          ))}
+        </S.PersonalizedShelf>
+      ) : (
+        <S.PersonalizedSectionEmpty>{emptyMessage}</S.PersonalizedSectionEmpty>
+      )}
+    </S.PersonalizedSection>
+  );
+
   return (
     <S.Wrapper>
       <S.Inner>
@@ -2174,8 +2710,78 @@ export default function SearchPage() {
             />
           )}
 
-          {/* 초기 상태 — 검색 안내 */}
-          {!hasSearched && !isLoading && (
+          {/* 초기 상태 — 회원 전용 개인화 추천 프레임 */}
+          {shouldShowPersonalizedRecommendations && (
+            <S.PersonalizedDiscover>
+              {isPersonalizedLoading ? (
+                <S.PersonalizedSkeletonStack>
+                  {[1, 2, 3].map((sectionIndex) => (
+                    <S.PersonalizedSkeletonSection key={`personalized-skeleton-${sectionIndex}`}>
+                      <S.PersonalizedSkeletonHeading />
+                      <S.PersonalizedSkeletonShelf>
+                        {[1, 2, 3, 4, 5, 6].map((cardIndex) => (
+                          <S.PersonalizedSkeletonPoster key={`skeleton-poster-${sectionIndex}-${cardIndex}`} />
+                        ))}
+                      </S.PersonalizedSkeletonShelf>
+                    </S.PersonalizedSkeletonSection>
+                  ))}
+                </S.PersonalizedSkeletonStack>
+              ) : (
+                <>
+                  {renderPersonalizedSection({
+                    key: 'top-picks',
+                    title: personalizedTopSectionTitle,
+                    movies: personalizedSections.topPicks,
+                    emptyMessage: '아직 예상 픽을 구성할 데이터가 부족합니다.',
+                  })}
+
+                  {personalizedSections.genreSections.map((section) => (
+                    renderPersonalizedSection({
+                      key: section.key,
+                      title: section.title,
+                      movies: section.movies,
+                      emptyMessage: '선호 장르 추천을 준비 중입니다.',
+                    })
+                  ))}
+
+                  {renderPersonalizedSection({
+                    key: 'chat-recommendations',
+                    title: 'AI 채팅으로 추천받았는데 아직 보지 않은 영화',
+                    movies: personalizedSections.chatRecommendationMovies,
+                    moreLink: ROUTES.ACCOUNT_RECOMMENDATIONS,
+                    emptyMessage: '아직 남아 있는 AI 채팅 추천 영화가 없습니다.',
+                  })}
+
+                  {renderPersonalizedSection({
+                    key: 'wishlist',
+                    title: '위시리스트에 추가해뒀던 영화',
+                    movies: personalizedSections.wishlistMovies,
+                    moreLink: wishlistMoreLink,
+                    emptyMessage: '위시리스트에 담긴 영화가 아직 없습니다.',
+                  })}
+
+                  {renderPersonalizedSection({
+                    key: 'similar-taste',
+                    title: '회원님과 비슷한 취향의 사람들이 좋아했던 영화',
+                    movies: personalizedSections.similarTasteMovies,
+                    emptyMessage: '비슷한 취향 섹션을 준비 중입니다.',
+                  })}
+
+                  {personalizedSections.reviewSections.map((section) => (
+                    renderPersonalizedSection({
+                      key: section.key,
+                      title: section.title,
+                      movies: section.movies,
+                      emptyMessage: '리뷰 기반 추천을 준비 중입니다.',
+                    })
+                  ))}
+                </>
+              )}
+            </S.PersonalizedDiscover>
+          )}
+
+          {/* 초기 상태 — 비회원 검색 안내 */}
+          {!hasSearched && !isLoading && !isAuthenticated && (
             <EmptyState
               icon="🎬"
               title="영화를 검색해보세요"

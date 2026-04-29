@@ -10,6 +10,7 @@
  */
 
 import styled, { css } from 'styled-components';
+import { Link } from 'react-router-dom';
 import { gradientText } from '../../../shared/styles/mixins';
 import { media } from '../../../shared/styles/media';
 
@@ -1363,6 +1364,261 @@ export const Results = styled.div`
     opacity: 0.3;
     z-index: -1;
   }
+`;
+
+export const PersonalizedDiscover = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+export const PersonalizedHero = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
+  padding: ${({ theme }) => theme.spacing.xl};
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.xl};
+  background:
+    radial-gradient(circle at top right, ${({ theme }) => theme.colors.primaryLight} 0%, transparent 42%),
+    linear-gradient(135deg, ${({ theme }) => theme.colors.bgCard}, ${({ theme }) => theme.colors.bgSecondary});
+  box-shadow: ${({ theme }) => theme.shadows.sm};
+`;
+
+export const PersonalizedEyebrow = styled.span`
+  color: ${({ theme }) => theme.colors.primary};
+  font-size: ${({ theme }) => theme.typography.textXs};
+  font-weight: ${({ theme }) => theme.typography.fontBold};
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+`;
+
+export const PersonalizedHeroTitle = styled.h2`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: ${({ theme }) => theme.typography.text2xl};
+  font-weight: ${({ theme }) => theme.typography.fontBold};
+  line-height: ${({ theme }) => theme.typography.leadingTight};
+`;
+
+export const PersonalizedHeroDescription = styled.p`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  line-height: ${({ theme }) => theme.typography.leadingNormal};
+`;
+
+export const PersonalizedSkeletonStack = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.xl};
+`;
+
+export const PersonalizedSkeletonSection = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+export const PersonalizedSkeletonHeading = styled.div`
+  width: 240px;
+  max-width: 60%;
+  height: 20px;
+  border-radius: ${({ theme }) => theme.radius.full};
+  background: ${({ theme }) => theme.colors.bgTertiary};
+`;
+
+export const PersonalizedSkeletonShelf = styled.div`
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(132px, 164px);
+  gap: ${({ theme }) => theme.spacing.md};
+  overflow-x: auto;
+  padding-bottom: ${({ theme }) => theme.spacing.xs};
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.borderDefault};
+    border-radius: ${({ theme }) => theme.radius.full};
+  }
+
+  ${mediaSmall} {
+    grid-auto-columns: minmax(116px, 140px);
+  }
+`;
+
+export const PersonalizedSkeletonPoster = styled.div`
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: ${({ theme }) => theme.radius.lg};
+  background:
+    linear-gradient(135deg, ${({ theme }) => theme.colors.bgSecondary}, ${({ theme }) => theme.colors.bgTertiary});
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+`;
+
+export const PersonalizedSection = styled.section`
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+export const PersonalizedSectionHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.md};
+`;
+
+export const PersonalizedSectionTitle = styled.h3`
+  margin: 0;
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: ${({ theme }) => theme.typography.textLg};
+  font-weight: ${({ theme }) => theme.typography.fontBold};
+  line-height: ${({ theme }) => theme.typography.leadingTight};
+`;
+
+export const PersonalizedMoreLink = styled(Link)`
+  flex-shrink: 0;
+  color: ${({ theme }) => theme.colors.primary};
+  font-size: ${({ theme }) => theme.typography.textSm};
+  font-weight: ${({ theme }) => theme.typography.fontSemibold};
+  text-decoration: none;
+  transition: opacity ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    opacity: 0.8;
+  }
+`;
+
+export const PersonalizedShelf = styled.div`
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(132px, 164px);
+  gap: ${({ theme }) => theme.spacing.md};
+  overflow-x: auto;
+  padding-bottom: ${({ theme }) => theme.spacing.xs};
+
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: ${({ theme }) => theme.colors.borderDefault};
+    border-radius: ${({ theme }) => theme.radius.full};
+  }
+
+  ${mediaSmall} {
+    grid-auto-columns: minmax(116px, 140px);
+  }
+`;
+
+export const PersonalizedPosterCard = styled(Link)`
+  display: block;
+  text-decoration: none;
+  border-radius: ${({ theme }) => theme.radius.lg};
+  overflow: hidden;
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  background: ${({ theme }) => theme.colors.bgCard};
+  transition: transform ${({ theme }) => theme.transitions.fast},
+              box-shadow ${({ theme }) => theme.transitions.fast},
+              border-color ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: ${({ theme }) => theme.colors.primary};
+    box-shadow: ${({ theme }) => theme.shadows.md};
+  }
+`;
+
+export const PersonalizedPosterFrame = styled.div`
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: ${({ theme }) => theme.colors.bgElevated};
+`;
+
+export const PersonalizedPosterImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform ${({ theme }) => theme.transitions.slow};
+
+  ${PersonalizedPosterCard}:hover & {
+    transform: scale(1.06);
+  }
+`;
+
+export const PersonalizedPosterPlaceholder = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    135deg,
+    ${({ theme }) => theme.colors.bgSecondary},
+    ${({ theme }) => theme.colors.bgTertiary}
+  );
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.typography.text3xl};
+`;
+
+export const PersonalizedPosterOverlay = styled.div`
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: ${({ theme }) => theme.spacing.xs};
+  padding: ${({ theme }) => theme.spacing.md};
+  background: linear-gradient(
+    180deg,
+    rgba(6, 10, 16, 0.04) 0%,
+    rgba(6, 10, 16, 0.42) 42%,
+    rgba(6, 10, 16, 0.9) 100%
+  );
+  opacity: 0;
+  transition: opacity ${({ theme }) => theme.transitions.fast};
+
+  ${PersonalizedPosterCard}:hover & {
+    opacity: 1;
+  }
+`;
+
+export const PersonalizedPosterTitle = styled.h4`
+  margin: 0;
+  color: white;
+  font-size: ${({ theme }) => theme.typography.textSm};
+  font-weight: ${({ theme }) => theme.typography.fontBold};
+  line-height: ${({ theme }) => theme.typography.leadingTight};
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+export const PersonalizedPosterMeta = styled.span`
+  color: rgba(255, 255, 255, 0.82);
+  font-size: ${({ theme }) => theme.typography.textXs};
+  line-height: ${({ theme }) => theme.typography.leadingTight};
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+`;
+
+export const PersonalizedSectionEmpty = styled.p`
+  margin: 0;
+  padding: ${({ theme }) => theme.spacing.lg};
+  border: 1px dashed ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.xl};
+  background: ${({ theme }) => theme.colors.bgCard};
+  color: ${({ theme }) => theme.colors.textMuted};
+  font-size: ${({ theme }) => theme.typography.textSm};
 `;
 
 /** 결과 건수 텍스트 — muted 색상, strong 태그 Primary 강조. */
