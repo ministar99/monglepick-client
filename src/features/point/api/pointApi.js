@@ -77,10 +77,17 @@ export async function getPointHistory({ page = 0, size = 20 } = {}) {
 /**
  * 출석 체크를 수행한다.
  * 하루에 한 번만 가능하며, 연속 출석 시 보너스 포인트를 받을 수 있다.
- * - 기본: 10P, 7일 연속: 30P, 30일 연속: 60P
+ * - 기본: 10P (등급 배율 적용), 7일 연속: +50P, 15일 연속: +100P, 30일 연속: +300P
+ *
+ * 2026-05-11 응답 확장: 마일스톤 보너스 합산 + 내역 분리
  *
  * @returns {Promise<Object>} 출석 체크 결과
- *   - checkDate, streakCount, earnedPoints, currentBalance
+ *   - checkDate, streakCount
+ *   - totalEarned: 기본 + 모든 보너스 합계 (UI "+nP 적립!")
+ *   - baseEarned:  ATTENDANCE_BASE 본 정책 지급액 (등급 배율 적용)
+ *   - bonuses: 마일스톤/등급승격 보너스 내역 [{actionType, activityName, points}]
+ *   - earnedPoints: (Deprecated) totalEarned 와 동일 값. 구 클라이언트 호환
+ *   - currentBalance: (Deprecated) 항상 0. 별도 getBalance() 호출 필요
  * @throws {Error} 이미 출석 완료 시 409 에러 (코드: P003)
  */
 export async function checkAttendance() {
@@ -90,14 +97,23 @@ export async function checkAttendance() {
 
 /**
  * 출석 현황을 조회한다.
- * 연속 출석 일수, 총 출석 일수, 오늘 출석 여부, 월간 출석 날짜 목록을 반환한다.
  *
+ * <p>2026-05-11 — year/month 인자 신설(이전달 조회 지원).
+ * 통계 필드(currentStreak/totalDays/checkedToday) 는 조회 대상 달과 무관하게
+ * 항상 사용자의 현재 상태를 반환한다. {@code monthlyDates} 만 대상 달로 한정.</p>
+ *
+ * @param {Object} [options={}] - 조회 옵션
+ * @param {number} [options.year]  - 조회 대상 연도 (선택, month 와 함께 지정 필수)
+ * @param {number} [options.month] - 조회 대상 월 1~12 (선택, year 와 함께 지정 필수)
  * @returns {Promise<Object>} 출석 현황 정보
- *   - currentStreak, totalDays, checkedToday, monthlyDates
+ *   - currentStreak, totalDays, checkedToday, monthlyDates, month ("YYYY-MM")
+ * @throws {Error} year/month 부정합 또는 미래 달 시 400
  */
-export async function getAttendanceStatus() {
+export async function getAttendanceStatus({ year, month } = {}) {
   requireAuth();
-  return api.get(POINT_ENDPOINTS.ATTENDANCE_STATUS);
+  /* year/month 가 둘 다 있을 때만 파라미터로 전송 — 둘 중 하나만 있으면 backend 가 400 으로 거부 */
+  const params = (year != null && month != null) ? { year, month } : undefined;
+  return api.get(POINT_ENDPOINTS.ATTENDANCE_STATUS, { params });
 }
 
 // ── 아이템 교환 ──
