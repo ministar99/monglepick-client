@@ -112,10 +112,16 @@ export default function PointPage() {
 
   /* 포인트 잔액 정보 (balance, grade, totalEarned) */
   const [balanceInfo, setBalanceInfo] = useState(null);
-  /* 출석 현황 (currentStreak, totalDays, checkedToday, monthlyDates) */
+  /* 출석 현황 (currentStreak, totalDays, checkedToday, monthlyDates, month) */
   const [attendanceStatus, setAttendanceStatus] = useState(null);
-  /* 출석 체크 결과 (애니메이션 표시용) */
+  /* 출석 체크 결과 (애니메이션 표시용 — totalEarned, baseEarned, bonuses, streakCount 등) */
   const [attendanceResult, setAttendanceResult] = useState(null);
+  /* 달력에 표시 중인 연/월 — 2026-05-11 이전달 조회 지원
+   * 기본값은 현재 달. 이전/다음 버튼으로 변경되며 useEffect 가 monthlyDates 를 재조회한다. */
+  const [attendanceView, setAttendanceView] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   /* 포인트 아이템 목록 */
   const [items, setItems] = useState([]);
   /* 현재 선택된 아이템 카테고리 — 백엔드 PointItemCategory 정규값(소문자 5종) 또는 'all'.
@@ -233,12 +239,18 @@ export default function PointPage() {
 
   /**
    * 출석 현황을 로드한다.
+   *
+   * <p>2026-05-11 — attendanceView (year, month) 를 파라미터로 전달하여 이전달 조회 지원.
+   * year/month 가 현재 달이면 백엔드에서는 파라미터 미전송 분기와 동일하게 동작한다.</p>
    */
   const loadAttendanceStatus = useCallback(async () => {
     if (!user?.id) return;
     setIsLoadingAttendance(true);
     try {
-      const data = await getAttendanceStatus();
+      const data = await getAttendanceStatus({
+        year: attendanceView.year,
+        month: attendanceView.month,
+      });
       setAttendanceStatus(data);
     } catch (err) {
       console.error('출석 현황 조회 실패:', err);
@@ -247,11 +259,12 @@ export default function PointPage() {
         totalDays: 0,
         checkedToday: false,
         monthlyDates: [],
+        month: `${attendanceView.year}-${String(attendanceView.month).padStart(2, '0')}`,
       });
     } finally {
       setIsLoadingAttendance(false);
     }
-  }, [user?.id]);
+  }, [user?.id, attendanceView.year, attendanceView.month]);
 
   /**
    * 포인트 아이템 목록을 로드한다.
@@ -478,7 +491,14 @@ export default function PointPage() {
 
   /**
    * 출석 체크 버튼 클릭 핸들러.
-   * 출석 성공 시 잔액과 출석 현황을 갱신한다.
+   *
+   * <p>2026-05-11 변경:</p>
+   * <ul>
+   *   <li>{@code totalEarned > 0} 일 때만 결과 애니메이션 노출. 0P 응답(정책 비활성/일일 상한 초과 등)
+   *       이면 안내 토스트로 대체하여 "+0P" 표시를 차단한다.</li>
+   *   <li>출석 후엔 달력을 현재 달로 강제 복귀시켜 방금 찍은 도장이 즉시 보이게 한다
+   *       (사용자가 이전 달을 보고 있다가 출석을 누른 경우 — 이론상은 버튼이 비활성이지만 안전망).</li>
+   * </ul>
    */
   const handleCheckAttendance = async () => {
     if (!user?.id || isCheckingAttendance) return;
@@ -488,13 +508,26 @@ export default function PointPage() {
 
     try {
       const result = await checkAttendance();
-      setAttendanceResult(result);
+
+      /* 출석 후 달력을 현재 달로 복귀 — useEffect 가 새 월의 monthlyDates 를 자동 재조회 */
+      const now = new Date();
+      setAttendanceView({ year: now.getFullYear(), month: now.getMonth() + 1 });
+
+      /* totalEarned 가 0 이면 결과 애니메이션 대신 안내 토스트 — "+0P" 가 화면에 뜨지 않게 차단.
+       * 정책 비활성 / dailyEarnCap 초과 / canGrant 미충족 등에서 발생 가능. */
+      if (!result?.totalEarned || result.totalEarned <= 0) {
+        setError('오늘 출석 적립 한도에 도달했어요. 내일 다시 시도해 주세요.');
+        if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
+        errorTimerRef.current = setTimeout(() => setError(null), 3000);
+      } else {
+        setAttendanceResult(result);
+        /* 3초 후 애니메이션 숨김 */
+        if (attendanceTimerRef.current) clearTimeout(attendanceTimerRef.current);
+        attendanceTimerRef.current = setTimeout(() => setAttendanceResult(null), 3000);
+      }
+
       /* 출석 보너스는 활동 카운터 + 스트릭 마일스톤 양쪽을 갱신하므로 진행 현황도 재동기화 */
       await Promise.all([loadBalance(), loadAttendanceStatus(), loadRewardProgress()]);
-
-      /* 3초 후 애니메이션 숨김 */
-      if (attendanceTimerRef.current) clearTimeout(attendanceTimerRef.current);
-      attendanceTimerRef.current = setTimeout(() => setAttendanceResult(null), 3000);
     } catch (err) {
       setError(err.message || '출석 체크에 실패했습니다.');
       if (errorTimerRef.current) clearTimeout(errorTimerRef.current);
@@ -502,6 +535,41 @@ export default function PointPage() {
     } finally {
       setIsCheckingAttendance(false);
     }
+  };
+
+  // ──────────────────────────────────────────────
+  // 출석 달력 월 네비게이션 핸들러 (2026-05-11 신설)
+  // ──────────────────────────────────────────────
+
+  /**
+   * 이전 달로 이동 — 월 1 → 12, 연도 -1 처리.
+   */
+  const handlePrevMonth = () => {
+    setAttendanceView((prev) => {
+      const m = prev.month - 1;
+      if (m < 1) return { year: prev.year - 1, month: 12 };
+      return { year: prev.year, month: m };
+    });
+  };
+
+  /**
+   * 다음 달로 이동 — 단, 현재 달을 넘어가면 호출되지 않음 (버튼 비활성).
+   * 12월 → 1월 / 연도 +1.
+   */
+  const handleNextMonth = () => {
+    setAttendanceView((prev) => {
+      const m = prev.month + 1;
+      if (m > 12) return { year: prev.year + 1, month: 1 };
+      return { year: prev.year, month: m };
+    });
+  };
+
+  /**
+   * 이번달 복귀 — 현재 달로 즉시 이동.
+   */
+  const handleResetMonth = () => {
+    const now = new Date();
+    setAttendanceView({ year: now.getFullYear(), month: now.getMonth() + 1 });
   };
 
   /**
@@ -772,6 +840,25 @@ export default function PointPage() {
               <AttendanceCalendar
                 attendanceStatus={attendanceStatus}
                 attendanceResult={attendanceResult}
+                viewYear={attendanceView.year}
+                viewMonth={attendanceView.month}
+                /* 다음달 이동 가능 여부 — 현재 달보다 미래로 갈 수 없음 */
+                canGoForward={(() => {
+                  const now = new Date();
+                  const nowY = now.getFullYear();
+                  const nowM = now.getMonth() + 1;
+                  return attendanceView.year < nowY
+                    || (attendanceView.year === nowY && attendanceView.month < nowM);
+                })()}
+                /* 현재 달을 보고 있는지 — 출석 버튼 활성/비활성 + 오늘 셀 표시 결정 */
+                isViewingCurrentMonth={(() => {
+                  const now = new Date();
+                  return attendanceView.year === now.getFullYear()
+                    && attendanceView.month === now.getMonth() + 1;
+                })()}
+                onPrevMonth={handlePrevMonth}
+                onNextMonth={handleNextMonth}
+                onResetMonth={handleResetMonth}
                 isLoading={isLoadingAttendance}
                 isCheckingAttendance={isCheckingAttendance}
                 onCheckAttendance={handleCheckAttendance}

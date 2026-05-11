@@ -123,17 +123,88 @@ export const Calendar = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
 `;
 
-/** 달력 헤더 — 현재 월 표시, 중앙 정렬. */
+/**
+ * 달력 헤더 — 좌측 화살표 / 중앙 월 텍스트 / 우측 화살표·복귀 버튼.
+ *
+ * 2026-05-11 — 월 네비게이션 신설로 단순 중앙 정렬 → 3-컬럼 flex 레이아웃 전환.
+ * 기존 단일 텍스트 표시 케이스도 동일 컨테이너 안에서 중앙 정렬을 유지한다.
+ */
 export const CalendarHeader = styled.div`
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.sm};
   padding-bottom: ${({ theme }) => theme.spacing.sm};
 `;
 
-/** 달력 월 텍스트 — semibold. */
+/** 달력 월 텍스트 — semibold, 중앙 영역. */
 export const CalendarMonth = styled.span`
+  flex: 1;
+  text-align: center;
   font-size: ${({ theme }) => theme.typography.textBase};
   font-weight: ${({ theme }) => theme.typography.fontSemibold};
   color: ${({ theme }) => theme.colors.textPrimary};
+`;
+
+/**
+ * 월 네비게이션 버튼 (좌/우 화살표).
+ *
+ * 2026-05-11 — 이전달 조회 신설.
+ * disabled 시 미래월 비활성 표시.
+ */
+export const MonthNavButton = styled.button`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.md};
+  background-color: ${({ theme }) => theme.colors.bgElevated};
+  color: ${({ theme }) => theme.colors.textPrimary};
+  font-size: ${({ theme }) => theme.typography.textBase};
+  font-weight: ${({ theme }) => theme.typography.fontSemibold};
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover:not(:disabled) {
+    background-color: ${({ theme }) => theme.colors.primaryLight};
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+`;
+
+/**
+ * 이번달 복귀 버튼 — 이전달 보기 모드에서만 노출되는 작은 버튼.
+ */
+export const MonthResetButton = styled.button`
+  padding: ${({ theme }) => `${theme.spacing.xs} ${theme.spacing.sm}`};
+  border: 1px solid ${({ theme }) => theme.colors.borderDefault};
+  border-radius: ${({ theme }) => theme.radius.md};
+  background-color: transparent;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  font-size: ${({ theme }) => theme.typography.textXs};
+  cursor: pointer;
+  transition: all ${({ theme }) => theme.transitions.fast};
+
+  &:hover {
+    border-color: ${({ theme }) => theme.colors.primary};
+    color: ${({ theme }) => theme.colors.primary};
+  }
+`;
+
+/**
+ * 헤더 우측 그룹 — 다음달 화살표 + 이번달 복귀 버튼을 한 셀로 묶는다.
+ */
+export const MonthNavRightGroup = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
 `;
 
 /**
@@ -229,18 +300,28 @@ export const CalendarCheckIcon = styled.span`
 
 /**
  * 출석 결과 배너 — bounceIn 애니메이션.
- * success 배경 + 테두리로 강조한다.
+ *
+ * 2026-05-11 — 합계+내역 분리 레이아웃으로 전환.
+ * 상단 헤더(합계 + 스트릭) + 하단 내역 ul 의 column flex.
+ * 기존 row 배치는 헤더 안에서 유지된다.
  */
 export const AttendanceResult = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: ${({ theme }) => theme.spacing.md};
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.sm};
   padding: ${({ theme }) => theme.spacing.md};
   background-color: ${({ theme }) => theme.colors.successBg};
   border: 1px solid ${({ theme }) => theme.colors.success};
   border-radius: ${({ theme }) => theme.radius.md};
   animation: ${bounceIn} 0.5s ease;
+`;
+
+/** 결과 헤더 — 합계 포인트 + 스트릭 텍스트를 한 줄에 가로 배치 */
+export const AttendanceResultHeader = styled.div`
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: ${({ theme }) => theme.spacing.md};
 `;
 
 /** 결과 포인트 텍스트 (+NP). */
@@ -253,6 +334,43 @@ export const AttendanceResultPoints = styled.span`
 /** 결과 스트릭 텍스트 (N일 연속 출석!). */
 export const AttendanceResultText = styled.span`
   font-size: ${({ theme }) => theme.typography.textSm};
+  color: ${({ theme }) => theme.colors.success};
+`;
+
+/**
+ * 보너스 내역 영역 — 헤더 아래 구분선과 함께 표시되는 ul.
+ *
+ * 2026-05-11 — 마일스톤 보너스가 응답에 노출됨에 따라 신설.
+ * 기본 출석 포인트 + 7/15/30일 보너스 각각을 행으로 노출한다.
+ */
+export const BonusBreakdown = styled.ul`
+  list-style: none;
+  margin: 0;
+  padding: ${({ theme }) => theme.spacing.sm} 0 0 0;
+  border-top: 1px dashed ${({ theme }) => theme.colors.success};
+  display: flex;
+  flex-direction: column;
+  gap: ${({ theme }) => theme.spacing.xs};
+`;
+
+/** 보너스 내역 한 줄 — 라벨 좌측 / 포인트 우측 */
+export const BonusBreakdownItem = styled.li`
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: ${({ theme }) => theme.spacing.sm};
+  font-size: ${({ theme }) => theme.typography.textXs};
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+/** 보너스 항목 라벨 (좌측). */
+export const BonusBreakdownLabel = styled.span`
+  color: ${({ theme }) => theme.colors.textSecondary};
+`;
+
+/** 보너스 항목 포인트 (우측). */
+export const BonusBreakdownPoints = styled.span`
+  font-weight: ${({ theme }) => theme.typography.fontSemibold};
   color: ${({ theme }) => theme.colors.success};
 `;
 
