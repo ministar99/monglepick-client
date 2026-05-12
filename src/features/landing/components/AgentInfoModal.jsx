@@ -44,9 +44,15 @@ export default function AgentInfoModal({ isOpen, onClose, contentId }) {
   }, [isOpen, onClose]);
 
   /* 활성 탭 인덱스 — content.tabs 가 있는 카드(Support v4 / Admin v3 등)에서만 사용.
-     모달이 닫히고 다시 열릴 때 0번 탭으로 초기화하기 위해 contentId 변경 시 reset. */
+     모달이 닫히고 다시 열릴 때 0번 탭으로 초기화하기 위해 contentId / isOpen 변경 시 reset.
+     useEffect 안의 setState 는 react-hooks/set-state-in-effect 룰 위반 → 렌더 중 prop 비교 +
+     setState 패턴 사용 (React 공식 권장: "You might not need an effect" - Resetting state when a prop changes). */
   const [activeTab, setActiveTab] = useState(0);
-  useEffect(() => { setActiveTab(0); }, [contentId, isOpen]);
+  const [prevKey, setPrevKey] = useState({ contentId, isOpen });
+  if (prevKey.contentId !== contentId || prevKey.isOpen !== isOpen) {
+    setPrevKey({ contentId, isOpen });
+    setActiveTab(0);
+  }
 
   /* contentId 로 본문 데이터 조회 (lazy chunk 내부에서 lookup → LandingPage 의
      AGENT_MODAL_CONTENT 정적 의존성 제거). 미매핑 ID 면 빈 모달 대신 null 반환. */
