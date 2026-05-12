@@ -23,7 +23,7 @@
  * content 스키마는 파일 하단의 AGENT_MODAL_CONTENT 참조.
  */
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import styled, { keyframes } from 'styled-components';
 
 /* ──────────────────────────────────────────────────────────────
@@ -43,6 +43,11 @@ export default function AgentInfoModal({ isOpen, onClose, contentId }) {
     };
   }, [isOpen, onClose]);
 
+  /* 활성 탭 인덱스 — content.tabs 가 있는 카드(Support v4 / Admin v3 등)에서만 사용.
+     모달이 닫히고 다시 열릴 때 0번 탭으로 초기화하기 위해 contentId 변경 시 reset. */
+  const [activeTab, setActiveTab] = useState(0);
+  useEffect(() => { setActiveTab(0); }, [contentId, isOpen]);
+
   /* contentId 로 본문 데이터 조회 (lazy chunk 내부에서 lookup → LandingPage 의
      AGENT_MODAL_CONTENT 정적 의존성 제거). 미매핑 ID 면 빈 모달 대신 null 반환. */
   const content = contentId ? AGENT_MODAL_CONTENT[contentId] : null;
@@ -50,6 +55,80 @@ export default function AgentInfoModal({ isOpen, onClose, contentId }) {
   if (!isOpen || !content) return null;
 
   const accent = content.color || '#7c6cf0';
+
+  /* 한 섹션을 그리는 헬퍼 — 평면 sections / 탭 내부 sections 양쪽에서 재사용.
+     섹션 스키마: { title, text?, list?, steps?, table?, code?, note? } */
+  const renderSection = (sec, i) => (
+    <Section key={i} $accent={accent}>
+      <SectionTitle $accent={accent}>{sec.title}</SectionTitle>
+      {sec.text && <SectionText>{sec.text}</SectionText>}
+
+      {sec.list && (
+        <SectionList>
+          {sec.list.map((item, j) => (
+            <li key={j}>
+              {typeof item === 'string' ? item : (
+                <>
+                  {item.label && <LiLabel>{item.label}</LiLabel>}
+                  {item.value && <LiValue>{item.value}</LiValue>}
+                  {item.sub && <LiSub>{item.sub}</LiSub>}
+                </>
+              )}
+            </li>
+          ))}
+        </SectionList>
+      )}
+
+      {sec.steps && (
+        <Steps>
+          {sec.steps.map((step, j) => (
+            <Step key={j} $accent={accent}>
+              <StepNum $accent={accent}>{j + 1}</StepNum>
+              <StepTitle>{step.title}</StepTitle>
+              {step.desc && <StepDesc>{step.desc}</StepDesc>}
+            </Step>
+          ))}
+        </Steps>
+      )}
+
+      {sec.table && (
+        <Table>
+          <thead>
+            <tr>
+              {sec.table.headers.map((h) => <th key={h}>{h}</th>)}
+            </tr>
+          </thead>
+          <tbody>
+            {sec.table.rows.map((row, r) => (
+              <tr key={r}>
+                {row.map((cell, c) => <td key={c}>{cell}</td>)}
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      )}
+
+      {sec.code && (
+        <CodeBlock>
+          {sec.code}
+        </CodeBlock>
+      )}
+
+      {sec.note && (
+        <Note $accent={accent}>
+          <NoteIcon>💡</NoteIcon>
+          <span>{sec.note}</span>
+        </Note>
+      )}
+    </Section>
+  );
+
+  /* 탭 분기: content.tabs 가 있으면 탭 UI 렌더, 없으면 기존 평면 sections.
+     기존 28개 카드 콘텐츠는 모두 sections 평면 구조라 하위 호환 보존. */
+  const hasTabs = Array.isArray(content.tabs) && content.tabs.length > 0;
+  const activeSections = hasTabs
+    ? (content.tabs[activeTab]?.sections || [])
+    : (content.sections || []);
 
   return (
     <Overlay onClick={onClose}>
@@ -79,78 +158,27 @@ export default function AgentInfoModal({ isOpen, onClose, contentId }) {
           </StatRow>
         )}
 
-        {/* 섹션들 */}
-        <Body>
-          {(content.sections || []).map((sec, i) => (
-            <Section key={i} $accent={accent}>
-              <SectionTitle $accent={accent}>{sec.title}</SectionTitle>
-              {/* 텍스트 본문 */}
-              {sec.text && <SectionText>{sec.text}</SectionText>}
+        {/* 탭 바 — content.tabs 가 있을 때만 노출 (Support v4 / Admin v3 등) */}
+        {hasTabs && (
+          <TabBar role="tablist" aria-label="섹션 탭">
+            {content.tabs.map((t, i) => (
+              <TabBtn
+                key={t.label}
+                role="tab"
+                aria-selected={activeTab === i}
+                $active={activeTab === i}
+                $accent={accent}
+                onClick={() => setActiveTab(i)}
+              >
+                {t.label}
+              </TabBtn>
+            ))}
+          </TabBar>
+        )}
 
-              {/* 단순 리스트 */}
-              {sec.list && (
-                <SectionList>
-                  {sec.list.map((item, j) => (
-                    <li key={j}>
-                      {typeof item === 'string' ? item : (
-                        <>
-                          {item.label && <LiLabel>{item.label}</LiLabel>}
-                          {item.value && <LiValue>{item.value}</LiValue>}
-                          {item.sub && <LiSub>{item.sub}</LiSub>}
-                        </>
-                      )}
-                    </li>
-                  ))}
-                </SectionList>
-              )}
-
-              {/* 단계 노드 (가로 흐름) */}
-              {sec.steps && (
-                <Steps>
-                  {sec.steps.map((step, j) => (
-                    <Step key={j} $accent={accent}>
-                      <StepNum $accent={accent}>{j + 1}</StepNum>
-                      <StepTitle>{step.title}</StepTitle>
-                      {step.desc && <StepDesc>{step.desc}</StepDesc>}
-                    </Step>
-                  ))}
-                </Steps>
-              )}
-
-              {/* 표 */}
-              {sec.table && (
-                <Table>
-                  <thead>
-                    <tr>
-                      {sec.table.headers.map((h) => <th key={h}>{h}</th>)}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sec.table.rows.map((row, r) => (
-                      <tr key={r}>
-                        {row.map((cell, c) => <td key={c}>{cell}</td>)}
-                      </tr>
-                    ))}
-                  </tbody>
-                </Table>
-              )}
-
-              {/* 코드 블록 */}
-              {sec.code && (
-                <CodeBlock>
-                  {sec.code}
-                </CodeBlock>
-              )}
-
-              {/* 강조 박스 */}
-              {sec.note && (
-                <Note $accent={accent}>
-                  <NoteIcon>💡</NoteIcon>
-                  <span>{sec.note}</span>
-                </Note>
-              )}
-            </Section>
-          ))}
+        {/* 섹션들 — 탭 전환 시 key 변경으로 슬라이드업 애니메이션 재실행 */}
+        <Body key={hasTabs ? `tab-${activeTab}` : 'flat'}>
+          {activeSections.map(renderSection)}
         </Body>
       </ModalBox>
     </Overlay>
@@ -319,18 +347,55 @@ const StatLabel = styled.div`
   letter-spacing: 0.02em;
 `;
 
+/* 탭 바 — Support v4 / Admin v3 같이 정보량 많은 카드에서만 활성화.
+   가로 스크롤 가능: 모바일에서 탭 4개가 화면을 넘어가도 옆으로 밀어볼 수 있게. */
+const TabBar = styled.div`
+  display: flex;
+  gap: 4px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  overflow-x: auto;
+  scrollbar-width: none;
+  &::-webkit-scrollbar { display: none; }
+`;
+
+const TabBtn = styled.button`
+  padding: 10px 16px;
+  background: ${({ $active, $accent }) => $active ? `${$accent}14` : 'transparent'};
+  border: none;
+  color: ${({ $active, $accent }) => $active ? $accent : '#8a8aa3'};
+  border-bottom: 2px solid ${({ $active, $accent }) => $active ? $accent : 'transparent'};
+  font-weight: ${({ $active }) => $active ? 700 : 500};
+  font-size: 13px;
+  font-family: 'Noto Sans KR', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.18s;
+  border-radius: 8px 8px 0 0;
+  margin-bottom: -1px;
+  &:hover { color: ${({ $accent }) => $accent}; }
+`;
+
+/* 탭 전환 시 key 변경 → 살짝 페이드/슬라이드 인 (사용자 피드백 강화).
+   gap 18 → 14: 탭으로 한 화면 섹션 수가 줄어 더 타이트하게 묶임. */
+const fadeSlideIn = keyframes`
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+`;
 const Body = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 18px;
+  gap: 14px;
+  animation: ${fadeSlideIn} 0.22s ease;
 `;
 
+/* 카드 간격 강화: padding 16→18, 좌측 액센트 보더 3→4px 로 카테고리 구분 강조 */
 const Section = styled.section`
-  background: rgba(255,255,255,0.02);
+  background: rgba(255,255,255,0.025);
   border: 1px solid rgba(255,255,255,0.06);
-  border-left: 3px solid ${({ $accent }) => `${$accent}80`};
+  border-left: 4px solid ${({ $accent }) => `${$accent}90`};
   border-radius: 12px;
-  padding: 16px 18px;
+  padding: 18px 20px;
 `;
 
 const SectionTitle = styled.h3`
@@ -547,6 +612,17 @@ export const AGENT_MODAL_CONTENT = {
           'AI API(Solar) 실패 시 → EXAONE 자유 텍스트 생성 → 미리 정의된 정적 선택지 순으로 자동 대체합니다. 인터넷이 불안정하거나 외부 API 장애가 있어도 응답이 돌아와요.',
           'AI 재정렬(LLM Reranker)이 10초 안에 끝나지 않으면 기존 점수만으로 자동 진행합니다. 속도가 느려질 수는 있지만 응답이 누락되는 일은 없어요.',
         ],
+      },
+      {
+        title: '근처 영화관 검색 — 위치 권한 멀티턴 처리 (2026-05-07)',
+        text: '"근처 영화관에서 최신 상영영화 찾아줘" → 브라우저 위치 권한 팝업이 떠야 하는데 회귀로 안 뜨고, 위치를 못 받은 채 "강남역" 같은 짧은 답변에도 위치 재질의가 무한 반복되던 문제를 4중 방어로 해결했습니다.',
+        list: [
+          'pending_question 상태머신 — 위치 재질의가 set 되면 LLM 분류 결과와 무관하게 무조건 도구 실행 분기로 라우팅',
+          'short_fallback 옵션 — 단일 토큰 응답("강남", "홍대", "이태원") 도 카카오 키워드 검색으로 자동 처리',
+          'Client geo 권한 거부 시 시각 피드백 — "주소창 자물쇠 → 위치 → 허용" 토스트 안내 + 메시지 전송은 그대로 진행 (Agent fallback 흡수)',
+          'KOBIS 게이팅 완화 — 박스오피스가 비어도 theater_search/search_movies 는 정상 실행, 박스오피스 헤드라인은 결과 있을 때만 자연스럽게 추가',
+        ],
+        note: '회귀 13건 신규 PASS (TestPendingLocationFlow 6 + TestPendingLocationOverride 7) + 기존 게이팅 3건 갱신 = chat agent 124 PASS · Client 빌드 OK',
       },
     ],
   },
@@ -2560,50 +2636,192 @@ PYTHONPATH=src uv run --with pytest --with pytest-asyncio --with httpx \\
   supportAgentV4: {
     icon: '🛟',
     tag: 'SUPPORT AGENT V4',
-    title: '몽글봇 고객센터 · ReAct 9노드 + 나의 데이터 직접 조회',
-    desc: '"내 포인트 얼마 남았어?" "이번 달 AI 이용권 몇 번 썼어?" 처럼 사용자의 실제 계정 데이터에 묻는 질문을 챗봇이 직접 Backend 에 조회해 답합니다. 9개 노드로 구성된 ReAct 루프(생각→도구 호출→관찰→다시 생각)가 의도 분류부터 응답 정형화까지를 자동으로 진행하며, 8개의 Read 전용 Tool 만 부여되어 챗봇이 사용자 데이터를 수정·삭제할 수 없도록 안전 가드되어 있어요. 멀티턴 대화 맥락은 Redis 에 보존되어 "그럼 그건 얼마야?" 같은 짧은 후속 질문도 이전 답변과 연결해 처리합니다.',
+    title: '몽글봇 — 24시간 자동 응대 챗봇',
+    desc: '"내 포인트 얼마야?", "환불 며칠 안에 신청해야 해?" 같은 질문을 사람이 매번 응대하지 않아도 자동으로 답하는 챗봇입니다. 본인 계정 데이터(포인트/구독/주문 등)는 Backend 에서 직접 가져오고, 회사 정책(환불·등급·구독 혜택 등)은 미리 벡터 DB 에 저장해둔 설계서 조각에서 검색해 답해요. 챗봇은 데이터를 "조회만" 할 수 있고 수정·삭제 권한은 코드 레벨에서 막혀있습니다.',
     color: '#118ab2',
     stats: [
-      { value: '9', label: '노드' },
-      { value: '8', label: 'Read Tool' },
-      { value: 'RedisSaver', label: '멀티턴' },
-      { value: '300', label: 'PASS 테스트' },
+      { value: '9단계', label: '자동 처리' },
+      { value: '8종', label: '본인 데이터' },
+      { value: 'Qdrant', label: '정책 벡터 DB' },
+      { value: '178', label: '회귀 테스트 PASS' },
     ],
-    sections: [
+    tabs: [
+      /* ─── 탭 1: 한눈에 보기 (역할 설명 — 처음 보는 사람용) ─── */
       {
-        title: '9노드 ReAct 그래프',
-        steps: [
-          { title: 'intent_classifier (capability 가드 우선)', desc: '사용자 메시지가 "넌 뭐야?" 같은 capability 질의면 LLM 우회하고 smalltalk 강제. 14개 키워드 패턴 매칭으로 환각을 사전 차단해요.' },
-          { title: 'smalltalk_responder', desc: '"몽글픽" 서비스 이름이 환각으로 다른 이름(예: "몽블랑")으로 출력되지 않도록 fixed-string 응답 + 후처리 정규화 이중 방어.' },
-          { title: 'tool_selector ↔ tool_executor ↔ observation', desc: 'ReAct 루프 — 도구 선택 → 호출 → 결과 관찰 → 다음 행동 결정을 MAX_HOPS 까지 반복. 가상 finish_task 툴로 종결.' },
-          { title: 'faq_search · policy_rag', desc: 'FAQ 검색(BM25 + 벡터) 과 정책 문서 RAG 가 평행으로 작동. 사용자 질문이 "환불 정책" 같은 일반론이면 정책 RAG, "내 결제내역" 이면 Read tool 로 분기.' },
-          { title: 'response_formatter', desc: '최종 응답에 [이전 대화] prefix 추가 + 서비스 이름 강제 정규화 + needs_human 플래그 부착.' },
+        label: '한눈에 보기',
+        sections: [
+          {
+            title: '몽글봇이 무엇을 도와주나요?',
+            text: '몽글봇은 몽글픽 사용자가 자기 계정에 대해 묻는 질문(내 포인트, 이번 달 AI 이용권, 결제 내역, 환불 정책 등)에 24시간 자연어로 답하는 챗봇입니다. 사람이 매번 응대하지 않아도 되도록, "고객 본인의 데이터" 와 "회사 정책 문서" 두 종류 정보를 정확히 구분해 답합니다. 대화 맥락은 Redis 에 보존되어 "그럼 그건 얼마야?" 같은 짧은 후속 질문도 이전 답변과 연결해 처리해요.',
+          },
+          {
+            title: '예시 대화 — 이런 질문을 처리해요',
+            list: [
+              '"내 포인트 얼마 남았어?" → 본인 잔액 + 이번 달 적립 합계 (Backend 즉시 조회)',
+              '"이번 달 AI 이용권 몇 번 썼어?" → 일일 무료 / 구독 보너스 / 구매한 토큰 3분 잔량',
+              '"환불 받으려면 며칠 안에 신청해야 해?" → 회사 환불 정책 문서에서 해당 조항 검색',
+              '"내 등급은 뭐고 다음 등급은?" → 현재 6등급 팝콘 테마 + 다음 등급까지 활동량',
+              '"몽글픽이 뭐 해줄 수 있어?" → 챗봇 자신의 역할 안내 (capability 가드로 환각 차단)',
+            ],
+          },
+          {
+            title: '왜 일반 FAQ 챗봇과 다른가요?',
+            text: '대부분의 FAQ 챗봇은 미리 만든 답변 목록에서 비슷한 질문을 찾아주는 방식이라 "내 포인트는 얼마야?" 같은 개인화 질문에 답할 수 없습니다. 몽글봇은 사용자가 로그인한 상태이면 본인 계정 데이터를 8가지 종류로 직접 조회해서 답하고, 정책 같은 일반론은 회사 설계서를 작은 단위로 나눠 미리 학습한 벡터 데이터베이스에서 의미 기반으로 검색합니다. 즉 "키워드가 일치하는 답변" 이 아니라 "의미가 비슷한 정책 조항" 을 찾아냅니다.',
+            note: '챗봇이 답할 수 없는 질문은 자동으로 needs_human=True 플래그를 붙여 상담사 연결을 유도합니다.',
+          },
         ],
       },
+
+      /* ─── 탭 2: 안에서 어떻게 (기술 구조 — 9노드 ReAct + Read tool 8개) ─── */
       {
-        title: 'Read Tool 8개 (lookup_my_*)',
-        list: [
-          'lookup_my_point_balance — 현재 포인트 잔액 + 이번 달 누적 적립',
-          'lookup_my_point_history — Page<HistoryResponse> 응답 평면 정규화 + days 필터',
-          'lookup_my_subscription — 활성 구독 플랜 + 다음 결제일',
-          'lookup_my_ai_quota — 일일 GRADE_FREE / SUB_BONUS / PURCHASED 3-소스 잔량',
-          'lookup_my_orders — 결제 이력 (Toss tx + 환불 상태)',
-          'lookup_my_tickets — 도장깨기 응모 + 추첨 회차 결과',
-          'lookup_my_grade — 6등급 팝콘 테마 + 다음 등급까지 활동량',
-          'lookup_my_recent_activity — 최근 7일 시청/리뷰/좋아요 요약',
+        label: '안에서 어떻게',
+        sections: [
+          {
+            title: '9단계 자동 처리 흐름 (ReAct 루프)',
+            steps: [
+              { title: '의도 분류', desc: '"내 데이터 질문" / "정책 질문" / "잡담" / "환불 같은 고감정 호소" / "다른 화면 안내" 5가지 중 하나로 분류. capability 질의 14개 키워드(예: "넌 뭐야?")는 LLM 우회로 즉시 처리.' },
+              { title: '도구 선택', desc: 'Solar API 가 8개 본인 데이터 도구 + 1개 정책 RAG 도구 중 적합한 것을 선택. 복합 질문이면 여러 도구를 순차 호출.' },
+              { title: '도구 실행', desc: '본인 데이터 도구는 Backend API 호출(X-User-Id 헤더로 본인 인증), 정책 도구는 Qdrant 벡터 DB 검색.' },
+              { title: '관찰', desc: '도구 결과를 보고 더 호출할지 / 답변을 만들지 결정. 최대 3번까지 반복(MAX_HOPS=3) — 무한 루프 방지.' },
+              { title: '응답 정형화', desc: '서비스명 "몽글픽" 강제 정규화(LLM 환각으로 "몽블랑" 같은 다른 이름 출력 차단) + 이전 대화 prefix 부착 + needs_human 플래그.' },
+            ],
+          },
+          {
+            title: '본인 데이터 조회 도구 8개 (수정 권한 없음)',
+            table: {
+              headers: ['도구', '조회 대상'],
+              rows: [
+                ['lookup_my_point_balance', '현재 포인트 잔액 + 이번 달 누적 적립'],
+                ['lookup_my_point_history', '포인트 적립/사용 내역 (Page 응답 평면화)'],
+                ['lookup_my_subscription', '활성 구독 플랜 + 다음 결제일'],
+                ['lookup_my_ai_quota', '일일 무료 / 구독 보너스 / 구매한 토큰 3분 잔량'],
+                ['lookup_my_orders', '결제 이력 + Toss 트랜잭션 + 환불 상태'],
+                ['lookup_my_tickets', '도장깨기 응모 + 영화 티켓 추첨 회차 결과'],
+                ['lookup_my_grade', '6등급 팝콘 테마 + 다음 등급까지 활동량'],
+                ['lookup_my_recent_activity', '최근 7일 시청/리뷰/좋아요 요약'],
+              ],
+            },
+            note: '8개 모두 GET API 만 호출 — 챗봇이 사용자 데이터를 수정·삭제할 수 없도록 코드 레벨에서 잠겨있음.',
+          },
+          {
+            title: '사용한 모델 & 인프라',
+            list: [
+              '의도 분류 + 도구 선택 + 응답 생성: Upstage Solar API (solar-pro · bind_tools 다중 hop ReAct)',
+              '잡담 응답: vLLM Tesla T4 에 서빙된 EXAONE 4.0 1.2B (몽글이 페르소나) + Solar 폴백',
+              '멀티턴 대화 보존: Redis (RedisSaver checkpointer · 세션별 격리)',
+              'FAQ 검색: Elasticsearch (한국어 형태소 분석 Nori)',
+              '정책 RAG: Qdrant 벡터 DB (Upstage Solar embedding-query, 4096차원, 코사인 top-5)',
+            ],
+          },
         ],
       },
+
+      /* ─── 탭 3: 정책 RAG 청킹·임베딩 파이프라인 (사용자 요청 핵심 신설 섹션) ─── */
       {
-        title: '🛡️ 안전 가드 (v4.2 환각 차단)',
-        text: '운영 몽글봇이 "포인트 내역 조회 실패" 회귀를 일으키며 capability 우회 / 환각 응답 / X-User-Id 헤더 미수신 등 다층 결함이 드러난 사건을 정리한 결과입니다. (1) intent_classifier 진입 시 키워드 매칭이 LLM 보다 먼저 작동, (2) response_formatter 가 최종 출력에 _normalize_service_name 강제, (3) Backend BaseControllerResolverTest 7케이스로 ServiceKey 인증 컨트랙트 회귀 차단 — 3중 방어망.',
-        note: '회귀 178 PASS (support_assistant_v4 88 + intent 26 + tools 28 + faq_search 21 + policy_rag 15) + Backend 7 PASS.',
+        label: '정책 RAG',
+        sections: [
+          {
+            title: '회사 설계서를 검색 가능한 데이터로 만드는 과정',
+            text: '"환불 정책", "AI 쿼터", "구독 혜택" 같은 정책 질문은 사용자마다 다르지 않은 일반론이라, 미리 회사 설계서를 작은 조각으로 나눠 벡터 DB(Qdrant)에 저장해 둡니다. 사용자가 질문하면 그 질문과 의미가 가장 비슷한 조각 상위 5개를 꺼내서 답변 생성에 사용해요. 마치 "정책 백과사전의 의미 색인" 을 자동으로 만들어 두는 것과 같습니다.',
+            note: '인덱서: monglepick-agent/scripts/index_support_policy.py · 컬렉션: Qdrant support_policy_v1 · 임베더: Upstage Solar embedding-passage (4096차원)',
+          },
+          {
+            title: '원본 문서 — 어떤 설계서를 학습시켰나요',
+            list: [
+              'docs/리워드_결제_설계서.md — 포인트·등급·구독·AI 쿼터·결제·환불 정책 마스터 문서',
+              'docs/결제_구독_시스템_설계_및_구현_보고서.md — Toss v2 결제 흐름 + 4 구독 플랜 상세',
+              '(--source CLI 옵션으로 추가 정책 마크다운 문서를 자유롭게 인덱싱 가능)',
+            ],
+            note: '"구현 세부" (JPA/MyBatis/AOP/Bean 분리 등 키워드가 헤딩에 있는 섹션)는 자동으로 RAG 에서 제외 — 사용자에게 도움이 안 되는 코드 설명을 빼고, 정책·사용 안내 텍스트만 학습시킵니다.',
+          },
+          {
+            title: '청킹 — 긴 설계서를 검색에 알맞은 크기로 자르기',
+            steps: [
+              { title: '1차 분할 (Level-2 헤딩)', desc: '마크다운 "## 제목" 마다 청크 1개. 같은 헤딩 안의 내용은 묶이고, 코드블록(```) 안의 ## 는 깨뜨리지 않아요. 헤딩이 곧 의미 단위라서 한 청크가 한 가지 주제만 담음.' },
+              { title: '2차 분할 (1500자 초과 시)', desc: '청크가 1500자를 넘으면 800자 슬라이딩 윈도우 + 200자 오버랩으로 다시 분할. 오버랩이 있어야 청크 경계에 걸친 문장이 양쪽 청크에 모두 검색됨.' },
+              { title: '필터 1: 구현 세부 제외', desc: '헤딩에 "구현/코드/JPA/MyBatis/AOP/Bean 분리/FOR UPDATE/Repository/Service 레이어" 같은 키워드가 있으면 정책 RAG 에서 제외.' },
+              { title: '필터 2: 코드블록 50% 초과 제외', desc: '청크 본문의 절반 이상이 코드블록이면 사용자용 정책 텍스트가 아니라고 판단해 제외 — RAG 품질 보호.' },
+            ],
+          },
+          {
+            title: '메타데이터 — 청크마다 9개 필드 부착',
+            table: {
+              headers: ['필드', '용도'],
+              rows: [
+                ['doc_id', '원본 문서 식별자 (파일명 기반, 예: "리워드_결제_설계서")'],
+                ['doc_path', '원본 파일 상대/절대 경로'],
+                ['section', '"§N 헤딩 텍스트" 형식 섹션 레이블 (검색 결과 출처 표시)'],
+                ['headings', '해당 청크가 속한 헤딩 경로'],
+                ['policy_topic', '7종 자동 분류 (아래 표) — 필터 검색 가속'],
+                ['doc_version', '문서 버전 태그 (예: v3.4, 미감지 시 "unknown")'],
+                ['indexed_at', 'ISO 8601 KST 타임스탬프'],
+                ['chunk_idx', '문서 내 순번 (0-based, 멱등 UPSERT key)'],
+                ['text', '청크 원문 (검색 결과 표시 + 임베딩 입력)'],
+              ],
+            },
+            note: 'point ID = UUID5(doc_id + chunk_idx) 로 deterministic → 같은 문서를 여러 번 인덱싱해도 멱등 UPSERT (중복 없음).',
+          },
+          {
+            title: 'policy_topic 자동 분류 — 7종 카테고리',
+            table: {
+              headers: ['topic', '매칭 조건 (둘 다 충족)', '예시 청크'],
+              rows: [
+                ['grade_benefit', '"등급" + {혜택·BRONZE·SILVER·GOLD·PLATINUM·DIAMOND·...}', '6등급 팝콘 테마 혜택표'],
+                ['ai_quota', '"AI" + {쿼터·한도·3-소스·GRADE_FREE·SUB_BONUS·PURCHASED}', '일일 무료/구독 보너스/구매 토큰 3분 잔량 규칙'],
+                ['subscription', '"구독" + {플랜·monthly·yearly·basic·premium}', 'monthly_basic 2,900원 등 4 플랜 상세'],
+                ['refund', '"환불" + {정책·기간·신청·취소·부분·전액}', '환불 신청 기간 / 부분·전액 기준'],
+                ['reward', '"리워드" + {적립·활동·출석·리뷰·뱃지}', '55개 활동 리워드 정책'],
+                ['payment', '"결제" + {Toss·카드·PG·webhook·idempotency}', 'Toss v2 결제 confirm 흐름'],
+                ['general', '(위 6개 어디에도 안 맞으면)', '서비스 일반 안내·등록'],
+              ],
+            },
+            note: '검색 시 사용자 질문에 "BRONZE 등급" 이 포함되면 policy_topic="grade_benefit" 으로 사전 필터링 → 검색 속도 + 정확도 향상.',
+          },
+          {
+            title: '인덱싱 → 검색 흐름',
+            code: `# 1. 청킹 (scripts/index_support_policy.py)
+Level-2 헤딩 분할 → 1500자 초과 시 800자 슬라이딩 (overlap 200)
+   ↓ + 구현 세부/코드블록 50% 초과 청크 자동 제외
+# 2. 임베딩 (Upstage Solar embedding-passage)
+4096차원 벡터 변환 · 100 RPM 제한 → 배치 50개당 0.7초 딜레이
+   ↓
+# 3. UPSERT (Qdrant support_policy_v1)
+point ID = UUID5(doc_id + chunk_idx) → 멱등
+payload 인덱스: policy_topic (KEYWORD) → 필터 가속
+   ↓
+# 4. 검색 (tools/support_tools/policy.py :: lookup_policy)
+사용자 질문 → Solar embedding-query → 코사인 유사도 top-5 (timeout 30s)
+필요 시 policy_topic 필터로 범위 한정 ("BRONZE 등급" → grade_benefit 만)`,
+          },
+        ],
       },
+
+      /* ─── 탭 4: 안전 가드 & 운영 (v4.2 환각 차단 + 사용 통계 + 진행 현황) ─── */
       {
-        title: '📊 사용 통계 & 감사',
-        list: [
-          'SupportChatLog JPA 엔티티 — Agent 가 fire-and-forget INSERT 로 모든 상호작용 기록',
-          'Admin 3 EP 추가 — KPI / 의도 분포 / TOP 10 / 세션 트레이스',
-          'Client ChatbotLogTab — 운영자가 실시간 챗봇 사용 패턴 분석',
+        label: '안전 & 운영',
+        sections: [
+          {
+            title: '환각(헛소리) 차단 3중 방어망 (v4.2, 2026-04-29)',
+            text: '운영에서 "포인트 내역 조회 실패" 회귀와 "서비스명을 다른 이름으로 출력" 환각이 동시에 발생한 사건을 정리한 결과 도입한 3중 방어. (1) intent_classifier 진입 시 "넌 뭐야?" 같은 14개 capability 키워드는 LLM 호출 우회하고 smalltalk 강제. (2) response_formatter 가 최종 출력에 _normalize_service_name() 강제 — 새 LLM 호출 경로가 추가돼도 최후 가드로 잡힘. (3) Backend BaseControllerResolverTest 7케이스가 ServiceKey 인증 컨트랙트(X-User-Id 헤더 자동 인식) 회귀를 차단.',
+            note: '회귀 테스트 178 PASS (support_assistant_v4 88 + intent 26 + tools 28 + faq_search 21 + policy_rag 15) + Backend 7 PASS',
+          },
+          {
+            title: '사용 통계 & 감사 (관리자가 모니터링)',
+            list: [
+              'SupportChatLog JPA 엔티티 — Agent 가 매 턴 fire-and-forget INSERT 로 상호작용 기록 (사용자 흐름 보호)',
+              'Admin EP 3종 — KPI / 의도 분포 / TOP 10 질문 / 세션 트레이스',
+              'Admin ChatbotLogTab UI — 운영자가 실시간 챗봇 사용 패턴 분석 (의도 분포·미해결 비율)',
+            ],
+          },
+          {
+            title: '진행 현황',
+            list: [
+              '✅ v4 Phase 2 (ReAct 9노드 + Read tool 8개 + RedisSaver 멀티턴 + Client 카드 3종) — 2026-04-28 완료',
+              '✅ v4.1 환각 가드 (capability 키워드 + 서비스명 정규화) — 2026-04-28 완료',
+              '✅ v4.2 capability 가드 강화 (intent_classifier 우회 + 14 키워드 + 응답 최후 정규화) — 2026-04-29 완료',
+              '⏳ Phase 2.5 v3 cleanup (legacy graph 제거 + 테스트 14건 v4 호환 마이그레이션) — 진행 중',
+            ],
+          },
         ],
       },
     ],
@@ -2616,62 +2834,190 @@ PYTHONPATH=src uv run --with pytest --with pytest-asyncio --with httpx \\
   adminAgentV3: {
     icon: '👑',
     tag: 'ADMIN AGENT V3',
-    title: '관리자 AI · Read 54 + Draft 11 + Navigate 14 ReAct 에이전트',
-    desc: '"환불 요청 3일 이상 미처리 건 보여줘" "어제 결제 실패율 차트 그려줘" 처럼 관리자가 자연어로 묻기만 하면 11개 노드의 ReAct 루프가 79개 도구 중 적합한 것을 골라 호출하고, 결과를 표/차트/폼 프리필 형태로 자동 렌더링합니다. 핵심 안전 원칙은 "AI 는 절대 데이터를 만들지/고치지/지우지 않는다" — 모든 도구는 Read(조회), Draft(폼 채우기), Navigate(화면 이동) 3종으로만 분류되어 있고, 실제 변경 작업은 항상 사람 관리자가 폼을 검토하고 직접 제출해야 진행돼요.',
+    title: '관리자 AI 운영 비서 — 자연어로 묻고 표·차트·폼으로 받기',
+    desc: '"환불 요청 3일 이상 미처리 건 보여줘", "어제 결제 실패율 차트 그려줘" 처럼 관리자가 자연어로 묻기만 하면 AI 가 적합한 도구를 골라 호출하고 결과를 표/차트/폼 프리필 형태로 자동 렌더링합니다. 핵심 안전 원칙은 "AI 는 절대 데이터를 만들지/고치지/지우지 않는다" — 모든 도구는 Read(조회) / Draft(폼 채우기) / Navigate(화면 이동) 3종으로만 분류되어 있고, 실제 변경 작업은 항상 사람 관리자가 폼을 검토하고 직접 제출해야 진행돼요.',
     color: '#ef476f',
     stats: [
-      { value: '11', label: 'ReAct 노드' },
-      { value: '79', label: 'Tool 총수' },
-      { value: 'MAX=5', label: 'Hops 제한' },
-      { value: '8', label: 'AdminRole' },
+      { value: '11단계', label: '자동 처리' },
+      { value: '85개', label: 'Tool 총수' },
+      { value: '3종', label: 'Read/Draft/Navigate' },
+      { value: '8역할', label: 'AdminRole' },
     ],
-    sections: [
+    tabs: [
+      /* ─── 탭 1: 한눈에 보기 (역할 설명 — 처음 보는 사람용) ─── */
       {
-        title: '11노드 ReAct 루프',
-        steps: [
-          { title: 'context_loader', desc: '관리자 ID·역할(8 AdminRole)·세션 컨텍스트 로딩. MemorySaver 로 대화 이력 자동 보존.' },
-          { title: 'intent_classifier', desc: 'Intent 6종 — query / action / stats / report / sql(미지원) / smalltalk. SQL 직접 실행은 의도적으로 차단(보안).' },
-          { title: 'tool_selector ↔ tool_executor ↔ observation', desc: 'ReAct 핵심 루프. MAX_HOPS=5 까지 반복하며, 가상 finish_task tool 로 명시적 종결.' },
-          { title: 'draft_emitter', desc: 'Draft tool 결과를 Client 폼에 프리필. mode("create"|"update") + target_id 로 신규/수정 분기 명확화.' },
-          { title: 'navigator', desc: 'Navigate tool 결과를 Client 라우팅으로 전달. goto_notice_detail/list 등 14개.' },
-          { title: 'narrator → response_formatter', desc: '결과를 자연어로 요약 + SSE 13 이벤트로 스트리밍.' },
+        label: '한눈에 보기',
+        sections: [
+          {
+            title: '관리자 AI 가 무엇을 해주나요?',
+            text: '관리자 페이지 안에 있는 챗봇으로, "어제 결제 실패율 보여줘" 같은 자연어 질문에 자동으로 답합니다. AI 가 직접 통계를 계산하거나 사용자를 정지시키지 않아요. 대신 (1) Backend 통계 API 를 호출해 표·차트를 자동으로 그려주거나, (2) "공지 작성" 같은 요청은 폼을 미리 채워서 띄워주고 사람이 검토·제출하게 하거나, (3) 관련 화면으로 이동시켜주는 3가지 역할만 합니다.',
+          },
+          {
+            title: '예시 시나리오 — 자연어 한 줄 → 자동 결과',
+            steps: [
+              { title: '통계 질문', desc: '"이번 주 신규 가입자 추이" → 일별 라인 차트 자동 생성 (chart_data SSE)' },
+              { title: '데이터 조회', desc: '"환불 미처리 3일 이상" → 환불 큐 표 자동 렌더 + 사용자 상세로 이동 링크' },
+              { title: '폼 작성', desc: '"내일 점검 공지 작성" → 공지 작성 폼이 제목/본문/일정 prefill 상태로 열림 (사람 검토 후 제출)' },
+              { title: '화면 이동', desc: '"김민규 사용자 결제 내역" → 검색 + 결제 내역 탭으로 즉시 이동' },
+            ],
+          },
+          {
+            title: '🔒 절대 안전 원칙 — AI 는 데이터를 직접 바꾸지 않음',
+            text: 'AI 가 자율적으로 사용자를 정지시키거나, 포인트를 지급하거나, 환불을 승인하지 않습니다. 모든 변경 작업은 "AI 가 폼을 채워주면 → 사람 관리자가 검토하고 직접 제출" 흐름으로만 진행돼요. 코드 레벨에서 AI 에게 INSERT/UPDATE/DELETE 권한 자체를 부여하지 않았고, "SQL 직접 실행" 의도는 보안상 명시적으로 미지원 처리되어 임의 쿼리가 차단됩니다.',
+            note: 'AdminRole 8종에 따라 도구 접근이 도메인별로 제한 — 결제 관리자(FINANCE_ADMIN) 는 결제 도구만, 콘텐츠 관리자(MODERATOR) 는 콘텐츠/사용자 중재 도구만 보입니다.',
+          },
         ],
       },
+
+      /* ─── 탭 2: 안에서 어떻게 (11노드 ReAct + Tool 분류) ─── */
       {
-        title: 'Tool 79개 분류',
-        table: {
-          headers: ['카테고리', '개수', '예시'],
-          rows: [
-            ['Read · stats',         '5',  'today_kpi · weekly_revenue · daily_active_users · ...'],
-            ['Read · stats_extended','16', 'cohort_retention · funnel_drop · ai_quota_distribution · ...'],
-            ['Read · dashboard',     '3',  'live_metrics · system_health · alert_overview'],
-            ['Read · users',         '7',  'find_user · user_grade_history · user_ai_quota · user_payments · ...'],
-            ['Read · content',       '4',  'movie_search · review_pending · faq_list · notice_list'],
-            ['Read · payment',       '5',  'tx_search · refund_queue · subscription_status · ...'],
-            ['Read · support',       '6',  'ticket_list · ticket_detail · chatbot_log · ...'],
-            ['Read · ai_ops',        '7',  'agent_traces · prompt_versions · embedding_jobs · ...'],
-            ['Read · system',        '2',  'monitoring_link · deploy_status'],
-            ['Read · settings',      '4',  'point_policy · grade_policy · subscription_plan · feature_flag'],
-            ['Read · chat_suggestions','1', 'top_chat_suggestions'],
-            ['Draft',                '11', 'notice_draft · faq_draft · ticket_reply_draft · point_grant_draft · ...'],
-            ['Navigate',             '14', 'goto_user_detail · goto_payment_detail · goto_notice_detail · ...'],
-          ],
-        },
-        note: '모든 Draft Args 에 mode("create"|"update") + target_id 추가 — 수정 의도를 AI 가 임의 추론하지 않고 명시적으로 분기.',
-      },
-      {
-        title: '🔒 절대 안전 원칙',
-        list: [
-          'AI 는 INSERT/UPDATE/DELETE SQL 을 직접 실행하지 않음 — Draft tool 만 부여',
-          'Draft 결과는 Client 폼에 프리필될 뿐 — 사람 관리자가 검토 후 직접 제출',
-          'Navigate tool 도 화면 이동만 — 자동 액션 실행 없음',
-          'SQL Intent 는 "미지원" 으로 분류 — 임의 쿼리 차단',
-          'AdminRole 8종 별 도구 도메인 제한 (SUPER_ADMIN/ADMIN=76, MODERATOR/SUPPORT_ADMIN/FINANCE_ADMIN 등은 제한)',
+        label: '안에서 어떻게',
+        sections: [
+          {
+            title: '11단계 자동 처리 흐름 (ReAct 루프)',
+            steps: [
+              { title: 'context_loader', desc: '관리자 ID·역할(8 AdminRole)·세션 컨텍스트 로딩. MemorySaver/RedisSaver 로 대화 이력 자동 보존.' },
+              { title: 'intent_classifier', desc: 'Intent 6종 — 조회(query) / 폼 작성(action) / 통계(stats) / 보고서(report) / SQL(미지원) / 잡담(smalltalk). SQL 직접 실행은 의도적으로 차단(보안).' },
+              { title: 'tool_selector', desc: 'Solar API 가 관리자 역할로 필터링된 도구 목록에서 적합한 것을 선택. 폼 작성 요청이면 Draft 계열, 화면 이동이면 Navigate 계열.' },
+              { title: 'tool_executor ↔ observation', desc: '실제 Backend API 호출 → 결과 누적 → 추가 호출 필요한지 판단. 최대 5번 반복(MAX_HOPS=5), 가상 finish_task 도구로 명시적 종결.' },
+              { title: 'draft_emitter', desc: 'Draft 도구 결과를 Client 폼에 프리필. mode("create"|"update") + target_id 로 신규/수정 분기 명확화.' },
+              { title: 'navigator', desc: 'Navigate 도구 결과를 Client 라우팅으로 전달. URL 쿼리에 prefill 값을 실어 보내 폼이 빈 채로 열리지 않도록.' },
+              { title: 'narrator → response_formatter', desc: '결과를 자연어로 요약 + SSE 13 이벤트로 스트리밍 (표는 table_data, 차트는 chart_data 로 별도 발행).' },
+            ],
+          },
+          {
+            title: 'Tool 분류 — 85개 도구 3종 카테고리',
+            table: {
+              headers: ['카테고리', '역할', '개수'],
+              rows: [
+                ['Read · 조회 전용', '통계·사용자·콘텐츠·결제·고객센터·AI 운영·시스템·설정 조회', '60'],
+                ['Draft · 폼 채우기', '공지/FAQ/티켓 답변/포인트 지급/배너/약관/이용권/추천 칩 등 폼 prefill', '11'],
+                ['Navigate · 화면 이동', '사용자/결제/공지 상세 화면 이동 + URL 쿼리 prefill 전달', '14'],
+              ],
+            },
+            note: 'AI 는 위 3종만 호출 가능. INSERT/UPDATE/DELETE 도구는 등록 자체가 안 되어 있어 코드 레벨에서 변경 권한 부재.',
+          },
+          {
+            title: '사용한 모델 & 인프라',
+            list: [
+              '의도 분류: Solar API solar-pro (분류·추출 특화)',
+              '도구 선택 + 답변 생성: Solar API bind_tools (다중 hop ReAct, temperature=0.2)',
+              '대화 이력: MemorySaver (개발) / RedisSaver (운영)',
+              'SSE 13 이벤트 스트리밍: FastAPI EventSourceResponse',
+            ],
+          },
         ],
       },
+
+      /* ─── 탭 3: 도구 분류 상세 (Read 11 모듈 + AdminRole 권한) ─── */
       {
-        title: '📡 SSE 13 이벤트',
-        text: 'session · status · tool_call · tool_result · token · form_prefill · navigation · table_data · chart_data · confirmation_required(예비) · report_chunk(예비) · done · error. table_data 는 list/Page row_count ≥ 3 일 때 자동 발행 (cols ≤6, rows ≤10, navigate_path 동봉). chart_data 는 stats tool 11종 화이트리스트(line/bar/pie). Client 가 dedup_key 로 upsert.',
+        label: '도구 상세',
+        sections: [
+          {
+            title: 'Read 60개 — 모듈별 분류',
+            table: {
+              headers: ['모듈', '개수', '예시'],
+              rows: [
+                ['stats',              '5',  'today_kpi · weekly_revenue · daily_active_users · ...'],
+                ['stats_extended',     '16', 'cohort_retention · funnel_drop · ai_quota_distribution · ...'],
+                ['dashboard',          '3',  'live_metrics · system_health · alert_overview'],
+                ['users_read',         '7',  'find_user · user_grade_history · user_ai_quota · user_payments · ...'],
+                ['content_read',       '4',  'movie_search · review_pending · faq_list · notice_list'],
+                ['payment_read',       '5',  'tx_search · refund_queue · subscription_status · ...'],
+                ['support_read',       '6',  'ticket_list · ticket_detail · chatbot_log · ...'],
+                ['ai_ops_read',        '7',  'agent_traces · prompt_versions · embedding_jobs · ...'],
+                ['system_read',        '2',  'monitoring_link · deploy_status'],
+                ['settings_read',      '4',  'point_policy · grade_policy · subscription_plan · feature_flag'],
+                ['chat_suggestions_read', '1', 'top_chat_suggestions'],
+              ],
+            },
+          },
+          {
+            title: 'Draft 11개 — 어떤 폼을 채워주나요',
+            list: [
+              'notice_draft — 공지사항 작성/수정 폼 (제목·본문·노출 일정·대상 등급)',
+              'faq_draft — FAQ 작성/수정 폼 (category Literal enum 강제)',
+              'help_draft — 도움말 작성 폼',
+              'banner_draft — 메인 배너 작성 폼',
+              'term_draft — 약관 작성/개정 폼',
+              'point_pack_draft — 포인트 패키지 작성 폼',
+              'reward_draft — 활동 리워드 정책 작성 폼',
+              'quiz_draft — 오늘의 퀴즈 검수 폼',
+              'worldcup_draft — 이상형 월드컵 세트 작성 폼',
+              'chat_suggestion_draft — 추천 칩 작성 폼',
+              'ticket_reply_draft — 고객센터 티켓 답변 작성 폼 (2026-04-29 신규)',
+            ],
+            note: '모든 Draft Args 에 mode("create"|"update") + target_id 가 추가되어 — AI 가 신규/수정 의도를 임의 추론하지 않고 명시적으로 분기.',
+          },
+          {
+            title: 'Navigate 14개 — 화면 이동 + URL prefill',
+            list: [
+              'goto_user_detail / goto_user_suspend / goto_user_role_change — 사용자 상세 / 정지 / 역할 변경 화면',
+              'goto_points_adjust / goto_token_grant — 포인트 조정 / 이용권 지급 화면 (pointAmount/tokenAmount/reason 등 URL 쿼리 prefill)',
+              'goto_payment_detail / goto_refund_detail — 결제·환불 상세',
+              'goto_notice_detail / goto_notice_list — 공지 상세/목록 (2026-04-29 신규)',
+              'goto_support_ticket / goto_chatbot_log — 고객센터 티켓 / 챗봇 로그',
+              'goto_quiz_detail / goto_review_pending — 퀴즈 / 리뷰 검수',
+              'goto_dashboard — 메인 대시보드',
+            ],
+          },
+          {
+            title: 'AdminRole 8종 별 도구 도메인 제한',
+            table: {
+              headers: ['역할', '접근 가능한 도구'],
+              rows: [
+                ['SUPER_ADMIN', '85개 모든 도구'],
+                ['ADMIN', '85개 (SUPER_ADMIN 동일)'],
+                ['MODERATOR', '콘텐츠·사용자 중재 도구만 (content_read · users_read · ticket_reply_draft · ...)'],
+                ['FINANCE_ADMIN', '결제·환불·구독 도구만 (payment_read · stats.revenue · ...)'],
+                ['SUPPORT_ADMIN', '고객센터 도구만 (support_read · ticket_reply_draft · chatbot_log)'],
+                ['DATA_ADMIN', '조회 전용 — Draft/Navigate 차단'],
+                ['AI_OPS_ADMIN', 'AI 운영 도구만 (ai_ops_read · prompt_versions · agent_traces)'],
+                ['STATS_ADMIN', 'stats + stats_extended 만'],
+              ],
+            },
+            note: 'tool_selector 노드가 역할별 필터링된 목록으로만 bind_tools 실행 → AI 가 권한 밖 도구를 호출 시도 자체를 못 함.',
+          },
+        ],
+      },
+
+      /* ─── 탭 4: 안전 가드 & 운영 (SSE 이벤트 + 진행 현황) ─── */
+      {
+        label: '안전 & 운영',
+        sections: [
+          {
+            title: '📡 SSE 13 이벤트 — Client 실시간 렌더',
+            text: 'session · status · tool_call · tool_result · token · form_prefill · navigation · table_data · chart_data · confirmation_required(예비) · report_chunk(예비) · done · error',
+            list: [
+              'table_data: list/Page 응답이 row_count ≥ 3 일 때 자동 발행 (cols ≤6, rows ≤10, navigate_path 동봉)',
+              'chart_data: stats tool 11종 화이트리스트 (line/bar/pie 자동 선택)',
+              'form_prefill: Draft 도구 완료 시 Client 폼에 값 자동 주입',
+              'navigation: Navigate 도구 완료 시 Client 라우팅 + URL 쿼리 prefill',
+              'Client 가 dedup_key 로 upsert → 같은 표/차트가 중복 렌더되지 않음',
+            ],
+          },
+          {
+            title: '🔒 4중 안전 가드',
+            list: [
+              'AI 는 INSERT/UPDATE/DELETE 도구가 등록되어 있지 않음 — Read/Draft/Navigate 만 부여',
+              'Draft 결과는 Client 폼에 prefill 될 뿐 — 사람 관리자가 검토 후 직접 제출',
+              'Navigate 도구도 화면 이동 + URL prefill 만 — 자동 액션 실행 없음',
+              'SQL Intent 는 "미지원" 으로 분류 — 임의 쿼리 차단',
+              'AdminRole 8종 별 도구 도메인 제한 — 권한 밖 도구는 bind_tools 단계에서 차단',
+            ],
+          },
+          {
+            title: '진행 현황',
+            list: [
+              '✅ 길 A v3 보강 (Tool 79 → 85 / Draft 11 + Navigate 14 / ticket_reply_draft + goto_notice 신규) — 2026-04-29',
+              '✅ prefill 모달 미닫힘 + 리워드/이용권 prefill 누락 + stale HITL 안내 동시 픽스 — 2026-04-29',
+              '✅ SSE table_data/chart_data dedup_key 도입 (Client upsert) — Phase 4 완료',
+              '⏳ Tool RAG + RedisSaver 운영 전환 (Step 7) — 진행 예정',
+              '⏳ @PreAuthorize AdminRole 강제 부착 — 컨트롤러 단위 점진 적용 중',
+            ],
+            note: '회귀 테스트 121 PASS / 11 skip · monglepick-admin 빌드 OK',
+          },
+        ],
       },
     ],
   },
@@ -2881,6 +3227,69 @@ PYTHONPATH=src uv run --with pytest --with pytest-asyncio --with httpx \\
       {
         title: '📐 권위 문서',
         text: 'docs/RDB_스키마_정의서_v2.md (88 테이블 정의서) + docs/v5_t2_09_15_개발문서 통합.xlsx 첫 시트 (필드/PK/외래키/인덱스 권위 원본). 코드와 교차 검증 필수 — 운영 원칙 §1.',
+      },
+    ],
+  },
+
+  /* ─────────── Solar API 사용량 추적 (2026-05-11 신설) ───────────
+     출처: docs/progress/infrastructure.md 2026-05-11 항목
+     - Backend solar_api_usage_log 테이블 + AdminSolarUsageService 집계
+     - Agent SolarUsageCallback (LangChain 비동기 콜백) + SolarUsageAttributionMiddleware (ContextVar 주입)
+     - Admin 매출 탭 SolarUsageSection (KPI 6장 + 일별 추이 + 모델별 Pie + 에이전트별 Bar) */
+  solarApiUsage: {
+    icon: '💰',
+    tag: 'SOLAR API USAGE',
+    title: 'Solar API 사용량·비용 자동 추적 (2026-05-11)',
+    desc: 'Upstage Solar API 를 부르는 5개 에이전트(chat / match / admin / support / content_analysis / roadmap / quiz)가 매 LLM 호출마다 얼마만큼의 토큰을 어느 모델에 썼는지 자동으로 기록하고, 관리자 매출 탭에서 일별·모델별·에이전트별로 비용을 한눈에 보여주는 운영 모니터링 파이프라인입니다. 사용자 요청 흐름은 절대 막지 않도록 fire-and-forget 패턴으로 적재해요.',
+    color: '#f97316',
+    stats: [
+      { value: '5개', label: '추적 에이전트' },
+      { value: '6 모델', label: 'Solar 단가 매핑' },
+      { value: 'KPI 6장', label: '매출 탭 UI' },
+      { value: 'fire&forget', label: '사용자 흐름 보호' },
+    ],
+    sections: [
+      {
+        title: '왜 만들었나요',
+        text: 'LLM 운영 비용은 모델별·에이전트별로 천차만별이라 "이번 달 어느 에이전트가 얼마 썼고, 어느 모델이 비싸게 먹혔는지" 가 보이지 않으면 비용 통제가 불가능합니다. 기존에는 운영자가 Upstage 콘솔에서 일별 총량만 볼 수 있었는데, 이제는 에이전트별/모델별 분해 + 일별 추이 + 누적 비용을 관리자 매출 탭에서 자동으로 확인할 수 있어요.',
+      },
+      {
+        title: '파이프라인 — 호출 → 추적 → 적재 → 집계 → 표시',
+        steps: [
+          { title: 'Solar API 호출', desc: 'Agent 의 각 노드(intent_classifier · tool_selector · narrator 등)에서 langchain-upstage 의 ChatUpstage 인스턴스를 부름.' },
+          { title: 'SolarUsageCallback (Agent)', desc: 'LangChain 비동기 콜백이 매 LLM 호출 직후 usage_metadata(input/output tokens) + 모델명을 캡처. 자동으로 모든 Solar 인스턴스에 부착됨.' },
+          { title: 'Middleware (Agent FastAPI)', desc: 'SolarUsageAttributionMiddleware 가 URL path → agent_name 매핑 (chat/match/admin/admin_assistant/support_assistant/content_analysis/roadmap/admin_data) 을 ContextVar 로 주입.' },
+          { title: 'fire-and-forget POST', desc: 'Backend POST /api/v1/admin/stats/solar-usage/log (ROLE_SERVICE) 로 비동기 전송. 실패해도 사용자 흐름은 그대로 진행 (경고 로그만).' },
+          { title: 'Backend 적재', desc: 'solar_api_usage_log JPA 테이블에 INSERT (agent_name · model · input_tokens · output_tokens · cost_usd · occurred_at).' },
+          { title: 'AdminSolarUsageService 집계', desc: 'GET /api/v1/admin/stats/solar-usage?period=7d|30d|90d (ADMIN) 으로 일별·모델별·에이전트별 집계 응답.' },
+          { title: 'Admin 매출 탭 표시', desc: 'SolarUsageSection 컴포넌트 — KPI 6장(오늘/이번달/누적 토큰·비용) + 일별 추이 ComposedChart + 모델별 Pie + 에이전트별 Bar + 기간 합계 4장.' },
+        ],
+      },
+      {
+        title: 'Solar 모델 단가 매핑 (monglepick.llm.solar_pricing)',
+        table: {
+          headers: ['모델', '입력 단가 / 1M tokens', '출력 단가 / 1M tokens'],
+          rows: [
+            ['solar-pro / pro2 / pro3', '$0.15', '$0.60'],
+            ['solar-mini', '$0.15', '$0.15'],
+            ['solar-embedding', '$0.10', '$0.00'],
+          ],
+        },
+        note: '단가 상수는 monglepick.llm.solar_pricing 모듈에 중앙화 — 변경 시 한 파일만 수정하면 전 에이전트에 반영. usage_metadata + 레거시 token_usage 양 경로 모두 지원해 모델 응답 포맷이 바뀌어도 호환.',
+      },
+      {
+        title: 'fire-and-forget 패턴 — 사용자 흐름 절대 차단 안 함',
+        list: [
+          'Backend 가 다운되어 사용량 POST 가 실패해도 → Agent 는 경고 로그만 남기고 정상 응답 진행',
+          'Backend 가 느려서 timeout 이 나도 → Agent 는 비동기 fire-and-forget 으로 보내고 즉시 다음 노드 실행',
+          'usage_metadata 가 누락된 응답 → 0 토큰으로 기록 (정확한 비용보다 사용자 응답 우선)',
+          'Agent 의 SolarUsageCallback 은 ContextVar 주입 실패 시 agent_name="unknown" 으로 폴백',
+        ],
+        note: '회귀 테스트: Agent 1234 PASS (Solar tracker 신규 20건 = pricing 7 + usage 추출 5 + 콜백 6 + ContextVar 2) · Backend SolarApiUsageLogRepositoryTest 2 PASS',
+      },
+      {
+        title: '운영 마이그레이션 SQL',
+        text: 'docs/migration_2026-05-11_solar_api_usage_log.sql — JPA 자동 생성 외에 인덱스 3종 (agent_name, model, occurred_at) 을 수동 검증. 운영 적용은 ddl-auto=update 로 자동 반영되지만, 수동 SQL 은 인덱스 누락 여부를 검증하는 용도.',
       },
     ],
   },
