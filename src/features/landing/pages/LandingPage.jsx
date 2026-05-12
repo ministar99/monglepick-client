@@ -51,11 +51,11 @@ const AGENT_DEEP_CATEGORIES = [
     desc: '사용자와 직접 대화하고 추천을 만드는 그래프들',
     cards: [
       { id: 'e2eJourney', icon: '🛤️', title: 'End-to-End Journey', sub: '가입 → 콜드스타트 → 추천 → 결제 → 관람 → 리뷰 → 리워드 한 루프', color: '#7c6cf0' },
-      { id: 'chatAgent',  icon: '💬', title: 'Chat Agent',         sub: 'LangGraph 18노드 · 4분기 흐름 · SSE 10 이벤트',         color: '#ef476f' },
+      { id: 'chatAgent',  icon: '💬', title: 'Chat Agent',         sub: '"오늘 우울한데 뭐 볼까?" 한 마디로 추천받는 18단계 대화형 AI · 위치 멀티턴 (2026-05-07)',         color: '#ef476f' },
       { id: 'matchAgent', icon: '🎬', title: 'Movie Match v3',     sub: '7노드 · LLM 리랭커 + Centroid + Co-watched CF',          color: '#a78bfa' },
       { id: 'roadmapAgent', icon: '🗺️', title: 'Roadmap Agent',    sub: '15편 테마별 큐레이션 · 단계별 진행 · 완주 뱃지',          color: '#ffd166' },
-      { id: 'supportAgentV4', icon: '🛟', title: 'Support Agent v4', sub: '9노드 ReAct · Read tool 8개 · RedisSaver 멀티턴 · capability 가드', color: '#118ab2' },
-      { id: 'adminAgentV3',   icon: '👑', title: 'Admin Agent v3',   sub: '11노드 ReAct · Tool 79개 (Read 54+Draft 11+Navigate 14) · MAX_HOPS=5', color: '#ef476f' },
+      { id: 'supportAgentV4', icon: '🛟', title: 'Support Agent v4', sub: '"내 포인트 얼마야?" 묻기만 하면 본인 데이터 + 정책 문서를 자동 조회해 답하는 24h 고객센터 챗봇', color: '#118ab2' },
+      { id: 'adminAgentV3',   icon: '👑', title: 'Admin Agent v3',   sub: '관리자가 자연어로 묻기만 하면 표·차트·폼을 자동으로 그려주는 운영 비서 (수정 권한 없음 · 사람 검토 강제)', color: '#ef476f' },
     ],
   },
   {
@@ -110,6 +110,8 @@ const AGENT_DEEP_CATEGORIES = [
       { id: 'adminConsole',icon: '👑', title: 'Admin Console',      sub: '10탭 · 96 API · 운영 11서브탭 · 통계 12탭 · 감사 로그',   color: '#ef476f' },
       { id: 'cloudInfra',  icon: '🏔️', title: 'Cloud & VM Security', sub: 'Kakao Cloud VPC · SSH 배스천 · Linux 하드닝 · TLS · 로드맵', color: '#06d6a0' },
       { id: 'observability', icon: '🔭', title: 'Monitoring & Observability', sub: 'Prometheus · Grafana · ELK · Alertmanager · LangSmith', color: '#118ab2' },
+      /* 2026-05-11 신설: Solar API 사용량/비용 자동 추적 + Admin 매출 탭 격상 */
+      { id: 'solarApiUsage', icon: '💰', title: 'Solar API 사용량 추적', sub: '5개 에이전트 × 6 Solar 모델 일별 토큰·비용 자동 기록 · 매출 탭에 KPI 6장 + 일별 추이/모델별 Pie/에이전트별 Bar', color: '#f97316' },
       { id: 'gitStrategy', icon: '🌿', title: 'Git Branching',      sub: 'Git Flow · main/develop · feature PR · 조직 레포 직접',   color: '#ef476f' },
       { id: 'cicd',        icon: '⚙️', title: 'CI / CD',            sub: 'GitHub Actions · gradle test · Vite build · deploy-prod', color: '#7c6cf0' },
       { id: 'staging',     icon: '🏭', title: 'Staging & Production', sub: 'MacBook Air 스테이징 + 카카오 클라우드 4-VM 운영',     color: '#a78bfa' },
@@ -1011,6 +1013,17 @@ export default function LandingPage() {
                 { dot: 'done', title: '오늘의 퀴즈 + 티켓 추첨 + 몽글봇 v4.2', desc: '오늘의 퀴즈 (LangGraph 7노드 + QuizPublishScheduler 매일 00:00 KST 자동 발행), 영화 티켓 추첨 (응모권/회차/관리자 수동 추첨), 고객센터 v4.2 (ReAct 9노드 + Read tool 8개 + RedisSaver 멀티턴 + capability 가드)', badge: 'done' },
                 /* 다국어 검색 Phase ML-4 — 운영 재적재 완료 (운영 Qdrant 임베딩 재적재 + Elasticsearch 인덱스 재생성 마침) */
                 { dot: 'done', title: '다국어 검색 Phase ML-4 — 운영 재적재', desc: '운영 서버 Qdrant 임베딩 재적재 + Elasticsearch 인덱스 재생성 완료', badge: 'done' },
+                /* ── 2026-04/05 신규 보강 (사용자 요청 — 최근 6주 작업 반영) ── */
+                { dot: 'done', title: '관리자 AI v3 길 A 보강 (Tool 79 → 85)', desc: 'Read 60 + Draft 11 + Navigate 14 · ticket_reply_draft + goto_notice 신규 · prefill 모달 미닫힘 + 리워드/이용권 prefill 누락 + stale HITL 안내 동시 픽스', badge: 'done' },
+                { dot: 'done', title: '영화 티켓 추첨 관리 보강 (EP 5 → 8)', desc: '관리자 UI KPI 6장 · 회차 강제 생성 · CSV export · DRAWING 복구 · 수동 추첨 500 회귀 픽스(NOT_SUPPORTED 트랜잭션)', badge: 'done' },
+                { dot: 'done', title: 'Chat Agent 위치 멀티턴 (pending_question 상태머신)', desc: '"강남역" 단일 토큰 응답도 카카오 검색으로 처리 · 위치 권한 거부 시 토스트 피드백 · KOBIS 게이팅 완화 · 회귀 13건 신규 PASS', badge: 'done' },
+                { dot: 'done', title: '관리자 매출 탭 격상 + Solar API 사용량 추적', desc: 'Backend solar_api_usage_log + Agent SolarUsageCallback (LangChain 비동기) + Admin SolarUsageSection (KPI 6장 + 일별 추이 + 모델/에이전트별 Pie/Bar) · fire-and-forget 패턴', badge: 'done' },
+                { dot: 'done', title: '출석체크 마일스톤 보너스 합산 + 이전달 조회', desc: '7/15/30일 streak 보너스(50/100/300P) 응답 합산 표시 · 월 네비게이션 UI 신설 · RewardResult.bonuses 재귀 구조 + AttendanceServiceTest 8 PASS', badge: 'done' },
+                { dot: 'done', title: '게시판 관리 탭 정리 (모더레이션 큐 / 혐오표현 제거)', desc: '운영자 워크플로우 미사용 결정으로 2개 서브탭 삭제 → 4개 서브탭(reports/posts/reviews/categories) 단일 진실 원본 회복', badge: 'done' },
+                /* ── 미완 항목 ── */
+                { dot: '', title: '고객센터 AI v4 Phase 2.5 (legacy v3 graph cleanup)', desc: 'support_assistant_graph_v3 제거 + 테스트 14건 v4 호환 마이그레이션 + _v3_compat_graph_swap fixture 제거', badge: 'pending' },
+                { dot: '', title: '도장깨기 리뷰 검증 에이전트 (503 스텁 → 실 구현)', desc: '4-Stage 임베딩+키워드+LLM 실관람 판별 파이프라인 구현 대기', badge: 'pending' },
+                { dot: '', title: '@PreAuthorize AdminRole 강제 부착', desc: '컨트롤러 단위 역할 검증 어노테이션 점진 적용 중', badge: 'pending' },
                 { dot: '', title: '몽글이 LoRA 파인튜닝', desc: 'EXAONE 4.0 1.2B 페르소나 파인튜닝 → vLLM 서빙(Tesla T4)', badge: 'pending' },
               ].map((item) => (
                 <S.TimelineItem key={item.title}>
